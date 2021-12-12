@@ -18,7 +18,9 @@ name using the `-o` flag, followed by the option name, to turn the option _on_.
 To turn it _off_, the option should be preceded by `+o` instead:
 
 `zsh -o shwordsplit` (turn `shwordsplit` on)
+
 or
+
 `zsh +o shwordsplit` (turn `shwordsplit` off)
 
 The long option style is `--option-name`. To turn it off, the same as above can
