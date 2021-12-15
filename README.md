@@ -33,3 +33,61 @@ off.
 For more information see [Invocation][].
 
 [Invocation]: https://zsh.sourceforge.io/Doc/Release/Invocation.html#Invocation
+
+### 2. Startup/Shutdown Files
+
+The order the files are read by `zsh` is:
+
+- `/etc/zshenv`: this is the first file read, and this cannot be changed.
+Subsequent files are read according to the variables `RCS` and `GLOBAL_RCS` (if
+`RCS` is unset in any of the files, no other files will be read after it; if
+`GLOBAL_RCS` is unset in any of the files, no other global files - `/etc/<file>`
+\- will be read after it).
+- `$ZDOTDIR/.zshenv`: if `$ZDOTDIR` is unset, `$HOME` is used instead.
+- `/etc/zprofile`, then `$ZDOTDIR/.zprofile` (if the shell is a login shell)
+- `/etc/zshrc`, then `$ZDOTDIR/.zshrc` (if the shell is an interactive shell)
+- `/etc/zlogin`, then `$ZDOTDIR/.zlogin` (if the shell is a login shell)
+- `$ZDOTDIR/.zlogout`, then `/etc/zlogout` (when a login shell exits)
+
+However, if the shell terminates by `exec`'ing another process, the logout files
+are not used.
+
+**Note**: Some of the files may be located in `/etc/zsh/..` rater than just
+`/etc/..`.
+
+**Note 2**: `PATH` shouldn't be modified in any `zshenv` file in Arch Linux, as
+the `/etc/zprofile` file builds it from scratch.
+
+Generally, users should only touch the `$ZDOTDIR/<file>` files, while the
+`/etc/<file>` files should only be managed by administrators.
+
+More on what the files should contain:
+- `zshenv`: sourced on all invocations of the shell, unless the `-f` option is
+  set. Should contain commands to set the search path and other imporant
+  environment variables. _It should not contain commands that produce output_.
+- `zshrc`: sourced in interactive shells. Should contain commands to set up
+  aliases, functions, options, keybindings, etc.
+- `zlogin`: sourced in login shells. Should contain commands that should only be
+  executed in login shells (TODO example?).
+- `zprofile`: similar to `zlogin`, except is is sourced before `zshrc`. This
+  file is meant as an alternative to `.zlogin` for ksh fans. The two are not
+  intended to be used together, though this can be done. `zlogin` should not
+  define aliases, commands, options, environment variables etc. It should rather
+  be used to set the terminal type and run a series of commands (`fortune`,
+  `msgs` etc.). `zprofile` should be used for things that are inherited by
+  non-`zsh` processes (like `PATH` of program-specific environment variables).
+
+For more information see:
+- [The Startup/Shutdown Files Manual][]
+- [The old _"Startup/Shutdown Files"_ Manual][]
+- [The Startup/Shutdown Files Zsh Guide][]
+- [Arch Linux's Guide on Startup/Shutdown Files][]
+- [A nice graph illustrating Bash's and Zsh's startup files][]
+- [A great answer on StachExchange on what each file should contain][]
+
+[The Startup/Shutdown Files Manual]: https://zsh.sourceforge.io/Doc/Release/Files.html#Files
+[The old _"Startup/Shutdown Files"_ Manual]: https://zsh.sourceforge.io/Intro/intro_3.html
+[The Startup/Shutdown Files Zsh Guide]: https://zsh.sourceforge.io/Guide/zshguide02.html
+[Arch Linux's Guide on Startup/Shutdown Files]: https://wiki.archlinux.org/title/Zsh#Startup/Shutdown_files
+[A nice graph illustrating Bash's and Zsh's startup files]: https://blog.flowblok.id.au/2013-02/shell-startup-scripts.html#implementation
+[A great answer on StachExchange on what each file should contain]: https://unix.stackexchange.com/questions/71253/what-should-shouldnt-go-in-zshenv-zshrc-zlogin-zprofile-zlogout
