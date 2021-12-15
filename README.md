@@ -115,7 +115,7 @@ Generally, users should only touch the `$ZDOTDIR/<file>` files, while the
 
 More on what the files should contain:
 - `zshenv`: sourced on all invocations of the shell, unless the `-f` option is
-  set. Should contain commands to set the search path and other imporant
+  set. Should contain commands to set the search path and other important
   environment variables. _It should not contain commands that produce output_.
 - `zshrc`: sourced in interactive shells. Should contain commands to set up
   aliases, functions, options, keybindings, etc.
@@ -169,3 +169,70 @@ For more information see:
 - [Precommand Modifiers in the Zsh Manual][]
 
 [Precommand Modifiers in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html#Precommand-Modifiers
+
+### 5. Shell functions
+
+Shell functions are defined with the `function` builtin or the `funcname ()`
+syntax. Alias names are resolved when the function is first read. This means
+aliases defined after a function has been read have no effect inside the
+function.
+
+Functions execute in the same process as the caller shell, unlike the external
+commands, which execute in subprocesses. This means changes to environment
+inside a function have effect on the shell executing it.
+
+All the current functions can be listed with the `functions` builtin. A function
+can be deleted by `unfunction`.
+
+Functions can be marked as undefined using the `autoload` builtin (or `typeset
+-fu` or `functions -u`). Such functions have no body, but the shell searches for
+its definition the first time the function is executed in the `$fpath`
+variable. Thus to autoload a function:
+
+```zsh
+fpath=(~/<dir/to/my/funcs> $fpath)
+autoload func1 func2
+```
+
+The alias expansion during reading can be suppressed by passing the `-U` flag to
+the `autoload` builtin.
+
+For each _item_ in `$fpath`, the shell looks at the following files to load the
+definition of a function:
+- `_item_.zwc`
+- `_item_/_function_.zwc`
+- `_item_/_function_`
+
+For what these files should contain and how the shell interprets the code inside
+them, see [The Functions section in the Zsh Manual][].
+
+#### Special functions
+
+There are certain functions that get executed when, for example, some commands
+are ran. These functions are called hook functions. For example:
+- `chpwd`: Executed whenever the current directory is changed.
+- `periodic`: If `$PERIOD` is set, this function is executed every `$PERIOD`
+  seconds, just before a prompt.
+- `precmd`: Executed before each prompt.
+- `preexec`: Executed just after a command has been read and is about to be
+  executed.
+- `zshaddhistory`: Executed when a command line has been read interactively,
+  but before it is executed.
+- `zshexit`: When the main shell is about to exit normally.
+
+Other types of functions are trap functions. These are executed when the shell
+catches a specific signal, as defined by the `kill` command.
+
+For example:
+
+```zsh
+TRAPINT() {
+    print "caught SIGINT"
+    return $(( 128 + $1 ))
+}
+```
+
+For more information see:
+- [The Functions section in the Zsh Manual][]
+
+[The Functions section in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Functions.html#Functions
