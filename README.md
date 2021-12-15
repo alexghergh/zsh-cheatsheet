@@ -91,3 +91,55 @@ For more information see:
 [Arch Linux's Guide on Startup/Shutdown Files]: https://wiki.archlinux.org/title/Zsh#Startup/Shutdown_files
 [A nice graph illustrating Bash's and Zsh's startup files]: https://blog.flowblok.id.au/2013-02/shell-startup-scripts.html#implementation
 [A great answer on StachExchange on what each file should contain]: https://unix.stackexchange.com/questions/71253/what-should-shouldnt-go-in-zshenv-zshrc-zlogin-zprofile-zlogout
+
+### 3. Interactive and login shells
+
+Depending on how a particular shell instance is started, the shell can be
+interactive or non-interactive, login or non-login. When you manually type
+commands in front of a shell, it is interactive. When you run a script in a
+shell, it happens to be non-interactive (though careful, the first shell that
+launches the command - say `zsh script` - is interactive, and it hangs around
+while the second shell, which runs the script and is non-interactive, finishes).
+
+When a system boots up, and after you type the password, the program
+`/bin/login` reads the file `/etc/passwd` and automatically launches a **login**
+shell. Other shells launched from this shell are all non-login shells. To tell
+the difference, the `/bin/login` program usually sticks a `-` in front of the
+login shell. You can get the name of the shell currently active by `echo $0`. If
+it contains the `-` at the beginning, it is a login shell.
+
+**Note**: There may possibly be non-interactive login shells, when for example
+windowing systems might lunch some startup scripts, and then launch the real
+interactive login shell.
+
+**Note 2**: Programs like `tmux` launch by default login shells. This happens
+because, for example, you might have a tmux session running, and then logout
+(which means `.zlogout` is ran), but the tmux server is still running in the
+background. If the shells would then not be login shells, they might not
+properly run after logging in again. This means shells running inside `tmux` are
+interactive login shells.
+
+To test if a shell is interactive/login:
+
+```zsh
+# To check if a shell is a login shell
+if [[ -o login ]]; then
+    print "Login"
+else
+    print "Non-login"
+fi
+
+# To check if a shell is an interactive shell
+if [[ -o interactive ]]; then
+    print "Interactive"
+else
+    print "Non-interactive"
+fi
+```
+
+For more information see:
+- [Interactive and Login Shells in the Zsh Guide][]
+- [Tmux creating login shells on StackExchange][]
+
+[Interactive and Login Shells in the Zsh Guide]: https://zsh.sourceforge.io/Guide/zshguide02.html
+[Tmux creating login shells on StackExchange]: https://superuser.com/questions/968942/why-does-tmux-create-new-windows-as-login-shells-by-default
