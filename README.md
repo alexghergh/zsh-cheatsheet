@@ -143,3 +143,29 @@ For more information see:
 [Arch Linux's Guide on Startup/Shutdown Files]: https://wiki.archlinux.org/title/Zsh#Startup/Shutdown_files
 [A nice graph illustrating Bash's and Zsh's startup files]: https://blog.flowblok.id.au/2013-02/shell-startup-scripts.html#implementation
 [A great answer on StachExchange on what each file should contain]: https://unix.stackexchange.com/questions/71253/what-should-shouldnt-go-in-zshenv-zshrc-zlogin-zprofile-zlogout
+
+### 4. Precommand modifiers
+
+Simple commands may be preceded by _precommand modifiers_, which alter how the
+command is interpreted. These are shell builtins, except for `nocorrect` which
+is a reserved word.
+
+- `-`: The command is executed with a `-` prepended to its `argv[0]` string
+  (e.g. `- echo hello`).
+- `builtin`: The command word is taken to be a builtin command rather than a
+  shell function or an external command.
+- `command` [`-pvV`]: The command word is taken to be an external command,
+  rather than a shell function or a builtin. The `-p` flag causes a default path
+  to be searched, instead of that in `$PATH`. The `-v` flag causes a command to
+  be displayed as how it would be run (synonym to `whence`). The `-V` switch
+  displays a more verbose output (synonym to `whence -v`).
+- `exec`: Run the command in place of the current shell, instead of as a
+  subprocess. The shell does not fork, but is completely replaced. It does not
+  invoke a `TRAPEXIT`, nor does it invoke `zlogout` files.
+- `nocorrect`: No spelling correction is done on any words.
+- `noglob`: No filename generation/globbing is performed.
+
+For more information see:
+- [Precommand Modifiers in the Zsh Manual][]
+
+[Precommand Modifiers in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html#Precommand-Modifiers
