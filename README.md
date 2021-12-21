@@ -86,7 +86,7 @@ For more information see:
 [Interactive and Login Shells in the Zsh Guide]: https://zsh.sourceforge.io/Guide/zshguide02.html
 [Tmux creating login shells on StackExchange]: https://superuser.com/questions/968942/why-does-tmux-create-new-windows-as-login-shells-by-default
 
-### 3. Startup/Shutdown Files
+### 3. Startup/Shutdown files
 
 The order the files are read by `zsh` is:
 
@@ -144,7 +144,63 @@ For more information see:
 [A nice graph illustrating Bash's and Zsh's startup files]: https://blog.flowblok.id.au/2013-02/shell-startup-scripts.html#implementation
 [A great answer on StachExchange on what each file should contain]: https://unix.stackexchange.com/questions/71253/what-should-shouldnt-go-in-zshenv-zshrc-zlogin-zprofile-zlogout
 
-### 4. Precommand modifiers
+### 4. Simple commands and pipelines
+
+A `simple command` is a word (the actual command) followed by additional
+parameters, separated by whitespace. If parameter assignments preced the
+command, these modify the environment in which the command in running. It's
+important to note that commands (careful, commands that are **not** builtins)
+run in a sub-shell, with a different environment from the parent shell. The
+value of a simple command is its exit status, or 128 plus the signal number if
+it was terminated by a signal.
+
+A `pipeline` is either a single command, or a sequence of simple commands where
+each command is separated from the next one by either `|` or `|&`. In the case
+of `|`, the standard output of the first command is connected to the standard
+input of the second command, while `|&` is shorthand for `2>&1 |`, which
+redirects both standard output and standard error of the first command to the
+input of the second command. The value of a pipeline is the value of the last
+command, unless the pipeline is preceded by `!`, in which case the value of the
+pipeline is the logical inverse of the value of the last command. For example:
+
+`echo foo; echo $?`
+
+returns 0, while
+
+`! echo foo; echo $?`
+
+returns 1.
+
+This is useful in if statements in scripts.
+
+If the pipeline is preceded by the `coproc` word, it is executed as a
+coprocess, which means a two-way pipe is established between it and the parent
+shell. The shell can read and write through the coprocess pipe by the means of
+`>&p` and `<&p` or with `print -p` and `read -p`. A pipeline cannot be
+preceded by both `coproc` and `!`.
+
+A `sublist` is either a single pipeline, or a sequence of one or more
+pipelines separated by `||` or `&&`. If two pipelines are separated by a `&&`,
+the second pipeline executes only if the first pipeline was successfull
+(returns zero). If two pipelines are separated by `||`, then the second pipeline
+executes only if the first one fails (returns non-zero). Both operatos have
+equal precedence and are left associative. The value of the sublist is the
+value of the last pipeline executed.
+
+A `list` is a sequence of zero or more sublists, in which each sublist is
+terminated by `;`, `&`, `&|`, `&!`, or a newline. When the sublist is terminated
+by `;`, the shell waits for it to finish before executing the next sublist. If a
+sublist is terminated by a `&`, `&|`, `&!`, the shell executes the last pipeline
+in it in the background, and does not wait for it to finish (note the difference
+from other shells where the whole sublist is executed in the background). A
+backgrounded pipeline always returns zero.
+
+For more information see:
+- [The Shell Grammar in the Zsh Manual][]
+
+[The Shell Grammar in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html#Shell-Grammar
+
+### 5. Precommand modifiers
 
 Simple commands may be preceded by _precommand modifiers_, which alter how the
 command is interpreted. These are shell builtins, except for `nocorrect` which
@@ -170,7 +226,7 @@ For more information see:
 
 [Precommand Modifiers in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html#Precommand-Modifiers
 
-### 5. Shell functions
+### 6. Shell functions
 
 Shell functions are defined with the `function` builtin or the `funcname ()`
 syntax. Alias names are resolved when the function is first read. This means
