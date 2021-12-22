@@ -90,16 +90,16 @@ For more information see:
 
 The order the files are read by `zsh` is:
 
-- `/etc/zshenv`: this is the first file read, and this cannot be changed.
+- `/etc/zshenv`: This is the first file read, and this cannot be changed.
 Subsequent files are read according to the variables `RCS` and `GLOBAL_RCS` (if
 `RCS` is unset in any of the files, no other files will be read after it; if
 `GLOBAL_RCS` is unset in any of the files, no other global files - `/etc/<file>`
 \- will be read after it).
-- `$ZDOTDIR/.zshenv`: if `$ZDOTDIR` is unset, `$HOME` is used instead.
-- `/etc/zprofile`, then `$ZDOTDIR/.zprofile` (if the shell is a login shell)
-- `/etc/zshrc`, then `$ZDOTDIR/.zshrc` (if the shell is an interactive shell)
-- `/etc/zlogin`, then `$ZDOTDIR/.zlogin` (if the shell is a login shell)
-- `$ZDOTDIR/.zlogout`, then `/etc/zlogout` (when a login shell exits)
+- `$ZDOTDIR/.zshenv`: If `$ZDOTDIR` is unset, `$HOME` is used instead.
+- `/etc/zprofile`, then `$ZDOTDIR/.zprofile` (if the shell is a login shell).
+- `/etc/zshrc`, then `$ZDOTDIR/.zshrc` (if the shell is an interactive shell).
+- `/etc/zlogin`, then `$ZDOTDIR/.zlogin` (if the shell is a login shell).
+- `$ZDOTDIR/.zlogout`, then `/etc/zlogout` (when a login shell exits).
 
 However, if the shell terminates by `exec`'ing another process, the logout files
 are not used.
@@ -114,14 +114,14 @@ Generally, users should only touch the `$ZDOTDIR/<file>` files, while the
 `/etc/<file>` files should only be managed by administrators.
 
 More on what the files should contain:
-- `zshenv`: sourced on all invocations of the shell, unless the `-f` option is
+- `zshenv`: Sourced on all invocations of the shell, unless the `-f` option is
   set. Should contain commands to set the search path and other important
   environment variables. _It should not contain commands that produce output_.
-- `zshrc`: sourced in interactive shells. Should contain commands to set up
+- `zshrc`: Sourced in interactive shells. Should contain commands to set up
   aliases, functions, options, keybindings, etc.
-- `zlogin`: sourced in login shells. Should contain commands that should only be
+- `zlogin`: Sourced in login shells. Should contain commands that should only be
   executed in login shells (TODO example?).
-- `zprofile`: similar to `zlogin`, except is is sourced before `zshrc`. This
+- `zprofile`: Similar to `zlogin`, except is is sourced before `zshrc`. This
   file is meant as an alternative to `.zlogin` for ksh fans. The two are not
   intended to be used together, though this can be done. `zlogin` should not
   define aliases, commands, options, environment variables etc. It should rather
@@ -144,13 +144,15 @@ For more information see:
 [A nice graph illustrating Bash's and Zsh's startup files]: https://blog.flowblok.id.au/2013-02/shell-startup-scripts.html#implementation
 [A great answer on StachExchange on what each file should contain]: https://unix.stackexchange.com/questions/71253/what-should-shouldnt-go-in-zshenv-zshrc-zlogin-zprofile-zlogout
 
-### 4. Simple commands and pipelines
+### 4. Commands and pipelines
+
+#### Simple commands and pipelines
 
 A `simple command` is a word (the actual command) followed by additional
 parameters, separated by whitespace. If parameter assignments preced the
 command, these modify the environment in which the command in running. It's
 important to note that commands (careful, commands that are **not** builtins)
-run in a sub-shell, with a different environment from the parent shell. The
+run in a subshell, with a different environment from the parent shell. The
 value of a simple command is its exit status, or 128 plus the signal number if
 it was terminated by a signal.
 
@@ -194,6 +196,72 @@ sublist is terminated by a `&`, `&|`, `&!`, the shell executes the last pipeline
 in it in the background, and does not wait for it to finish (note the difference
 from other shells where the whole sublist is executed in the background). A
 backgrounded pipeline always returns zero.
+
+#### Complex commands
+
+A complex command in zsh usually refers to the shell language used for scripting
+(i.e. the `if` statements, the `while` and `for` loops etc.).
+
+Zsh has quite a comprehensive list of complex commands (careful though, every
+`<list>` ends in the terminators mentioned above, i.e. `;`, `&`, `&|`, `&!`, or
+a newline):
+- `if <list> then <list> [elif <list> then <list>] ... [else <list>] fi`: The
+  classic if statement seen in shells.
+- `for <name> ... [in <word> ...] <term> do <list> done`: The classic for
+  statement found in the shells language. `<term>` refers to either a `;` or one
+  or multiple newlines. `<name>` expands to each `<word>` separately, and the
+  loop is executed once for each such expansion. There can be multiple `<name>`s
+  specified after the for loop, in which case each `<name>` is assigned a
+  variable from the `<words>` list in order. If there are more `<name>`s than
+  `<words>` in the list, the additional `<name>`s are assigned the empty string.
+- `for (( [expr1]; [expr2]; [expr3] )) do <list> done`: A standard C-like for
+  loop.
+- `while <list> do <list> done`: The classic while statement found in the shells
+  language. Runs the body of the loop (the second `<list>`) while the first
+  `<list>` returns a zero value.
+- `until <list> do <list> done`: Runs the body of the loop (the second `<list>`)
+  until the first `<list>` returns a zero value.
+- `repeat <word> do <list> done`: `<word>` is expanded and treated as an
+  arithmetic expression, which must evaluate to a number. `<list>` is then
+  executed that number of times.
+- `case <word> in [[(]<pattern>[ | <pattern>] ... ) <list> (<;;>|<;&>|<;|>)] ...
+  esac`: A C-like switch statement. `<word>` is matched against `<pattern>` and,
+  if it matched, then `<list>` is executed. The pattern matching is the same as
+  that of filename generation (TODO link to tip number). If the `<list>` that is
+  executed is terminated with `;&` instead of the usual `;;`, the following
+  `<list>` is also executed (regardless if `<pattern>` matches `<word>` or not).
+  The rules for terminators are then repeated until the final `esac` is reached.
+  If the `<list>` executed terminates with `;|`, then the shell continues to
+  scan `<patterns>` until either a new pattern-matching occurred, or the final
+  `esac` was reached.
+- `select <name> [in <word> .. <term>] do <list> done`: Offers a selection
+  dialog on the command line, with each `<word>` being one of the options.
+  `<term>` again refers to either `;` or one or multiple newlines. On correct
+  selection of one of the options, the `<name>` parameter is set to the
+  corresponding option. The `$REPLY` variable is set to the contents of the line
+  read from the input.
+- `( <list> )`: Executes `<list>` in a subshell. Traps set by the `trap` builtin
+  are reset to their default values while executing `<list>`. Builtins execute
+  in a subshell too.
+- `{ <list> }`: Executes `<list>`.
+- `{ <try-list> } always { <always-list> }`: A try-finally block. First executes
+  `<try-list>`, and then executes `<always-list>`, regardless of errors,
+  `continue` or `break` found. More details about this construct can be found in
+  the manual.
+- `function <word> ... [()] [<term>] { <list> }` or `<word> ... () [<term>] {
+  <list> }` or `<word> ... () [<term>] <command>`: Defines a function which is
+  referenced by any of the `<word>`s. `<term>` again refers to either `;` or one
+  or multiple newlines.
+- `term [<pipeline>]`: `<pipeline>` is executed, then timing statistics are
+  shown in the command line, according to the `TIMEFMT` parameter. If
+  `<pipeline>` is omitted, print statistics about the shell and its children.
+- `[[ exp ]]`: Evaluate the conditional expression `exp` and return zero if it's
+  true. This is usually helpful in conjunction with the `if`, `while`, `for`
+  statements mentioned above.
+
+There are some alternate forms for the complex commands described above, however
+these are not standard and should be strongly avoided. More information in the
+manual.
 
 For more information see:
 - [The Shell Grammar in the Zsh Manual][]
