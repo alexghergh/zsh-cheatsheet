@@ -291,6 +291,7 @@ is a reserved word.
 
 For more information see:
 - [Precommand Modifiers in the Zsh Manual][]
+- The man pages of the different modifiers (`run-help <modifier>`)
 
 [Precommand Modifiers in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html#Precommand-Modifiers
 
@@ -358,6 +359,7 @@ TRAPINT() {
 
 For more information see:
 - [The Functions section in the Zsh Manual][]
+- The man pages of the Zsh functions (`run-help functions` and `run-help function`)
 
 [The Functions section in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Functions.html#Functions
 
