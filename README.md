@@ -360,3 +360,10 @@ For more information see:
 - [The Functions section in the Zsh Manual][]
 
 [The Functions section in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Functions.html#Functions
+
+### 7. Comments
+
+In non-interactive shells, or in interactive shells which set the
+`INTERACTIVE_COMMENTS` option, a word beginning with the third character of the
+`histchars` variable (usually `#`) marks a comment, which causes all the
+following characters until the next newline to be ignored by the shell.
