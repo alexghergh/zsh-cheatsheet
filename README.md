@@ -423,3 +423,237 @@ For more information see:
 - [The Zsh Manual on Quoting][]
 
 [The Zsh Manual on Quoting]: https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html#Quoting
+
+### 10. Input and output redirection
+
+If job control is active and a command is sent to the background (either by
+appending a `&` to the command or by using the background control sequence - by
+default `Ctrl-Z` in many terminals), then the command's input and output are
+those specified in the environment of the parent shell, possibly modified by
+input/output specifications on the command line. For example, if a command's
+input is the command line standard input (default file descriptor 0) and it is
+sent into the background, then it's input becomes `/dev/null` (standard output
+and error remains the same, unless other options are set to suppress background
+jobs' output).
+
+There are a number of redirections that can appear anywhere inside a simple
+command or may precede or follow a complex command (see above for what those
+mean). Expansion occurs before `word` or `digit` are used. If the result
+substitution on `word` produces more than one filename, then redirection occurs
+for each separate filename.
+
+The redirections are as follows:
+- `< word`: Open the file `word` for reading as standard input. It's an error to
+  open a file in this fashion if it does not exist.
+- `<> word`: Open the file `word` for reading and writing as standard input. If
+  the file does not exist then it is created (does not seem to work as
+  expected!).
+- `> word`: Open the file `word` for writing as standard output. If the file
+  does not exist then it is created. If the file exists, and the `CLOBBER`
+  option is unset, then an error is raised (this prevents from accidental
+  overwrites). Otherwise, the file is truncated to zero length.
+- `>| word` or `>! word`: Same as `>`, except that the file is truncated to zero
+  length regardless of the `CLOBBER` option.
+- `>> word`: Open the file `word` in append mode as standard output. If the file
+  does not exist, and the options `CLOBBER` and `APPEND_CREATE` are both unset,
+  this causes an error. Otherwise, the file is created.
+- `>>| word` or `>>! word`: Same as `>>`, except that the file is created if it
+  does not exist, regardless of `CLOBBER` and `APPEND_CREATE`.
+- `<<[-] word`: The shell input is read up to a line that is the same as `word`,
+  or an end-of-file. No parameter expansion, command substitution or filename
+  generation is performed on `word`. The resulting document, called a
+  _here-document_ (or _heredoc_), becomes the standard input. The
+  _here-document_ is subjected to parameter substitution (but no alias or
+  filename expansion). However, if any character of `word` is quoted with double
+  or single quotes or a `\`, no interpretation is placed on any of the
+  characters in the document. Note that `word` itself does not undergo shell
+  expansion. Backquotes and `$'...'` also behave differently (see the manual for
+  more details). If `<<- word` is used, then all leading tabs from `word` and
+  the document are stripped.
+- `<<< word`: Perform shell expansion on word and pass the result to standard
+  input. This is different from the above, where the above does not undergo
+  shell expansion.
+- `<& number` and `>& number`: The standard input/output is duplicated from file
+  descriptor `number` (see man page dup2(2)).
+- `<& -` and `>& -`: Close the standard input/output.
+- `<& p` and `>& p`: The input/output from/to the coprocess is moved to the
+  standard input/output. See more in the [pipeline section above](#simple-commands-and-pipelines).
+- `>& word` and `&> word`: Redirects both standard output and standard error to
+  `word`. The first form is ambiguous (since it can match some of the syntax
+  above), so it should be avoided. Note that this does not have the same effect
+  as `> word 2>&1` in the presence of _multios_ (see section below for more on
+  this). **NOTE:** There is a difference between `& >` and `&>`. The first one
+  sends the command before it in the background, and then writes the standard
+  input to the file supplied after it, while the second one if explained above.
+- `>&| word` and `>&! word` and `&>| word` and `&>! word`: Redirects both
+  standard output and standard error in the manner of `>| word`.
+- `>>& word` and `&>> word`: Redirects both standard output and standard error
+  in the manner of `>> word`.
+- `>>&| word` and `>>&! word` and `&>>| word` and `&>>! word`: Redirects both
+  standard output and standard error in the manner of `>>| word`.
+
+If any of the above forms are preceded by a digit, then that is used instead of
+the standard input/output (file descriptors 0 and 1). The digit comes right
+before the redirection (there shouldn't be any whitespace between them). This
+becomes interesting in cases such as `6&> file`, which basically says that both
+file descriptor 6 and standard error are redirected to the file, however
+standard output (file descriptor 1), remains the same.
+
+The order in which redirections are specified matters. The shell evaluates each
+redirection in terms of the _(file descriptor, file)_ association _at the time
+of the evaluation_. For example:
+
+`... 1> file 2>&1`
+
+associates standard output to the file specified, and then associates standard
+error to the same output specified by file descriptor 1 (that is, the file). If
+they were reverse, then first standard error would be associated with the file
+descriptor 1 (standard output), and then file descriptor 1 would be associated
+with the file.
+
+There are various forms of process substitution as well; `<(list)` and
+`=(list)` for input and `>(list)` for output. They are often used together with
+redirection. For example, if the `word` in a redirection is of the form
+`>(list)` then the output of the command is piped to the command represented by
+`list`. More on this in [process substitution](https://zsh.sourceforge.io/Doc/Release/Expansion.html#Process-Substitution).
+
+#### Named file descriptors
+
+There is another way to use the redirection mechanism. This is by using named
+file descriptors. The syntax is as follows:
+
+`... {myfd}>& word`
+
+This works by creating a named file descriptor (with the id _myfd_) which is
+guaranteed to be at least file descriptor number 10. This file descriptor can be
+written with the syntax `>&$myfd`. The file descriptor remains open in subshells
+and forked external executables. The file descriptor can be closed by
+`{myfd}>&-`.
+
+The following shows a typical use of this mechanism:
+
+```zsh
+integer myfd
+exec {myfd}>my/log/file.txt
+print This is some debugging line >&$myfd
+exec {myfd}>&-
+```
+
+#### Multios
+
+There is an additional mechanism which allows arbitrary commands to write their
+output to more than one redirection, similar to how the _tee_ executable works,
+provided the `MULTIOS` option is set. For example:
+
+`print Some interesting text > bar > foo`
+
+This opens a process that copies the output of the first command (`print`) to
+both files (again, provided the option `MULTIOS` is set). With `MULTIOS` not
+set, each redirection replaces the previous redirection for that file
+descriptor. However, all files redirected to are actually opened. This means the
+above would have the effect of opening _bar_ (truncating it to zero length),
+then closing it, and opening _foo_ (again truncating it to zero length), and
+finally writing the text inside _foo_.
+
+Note that `MULTIOS` works in the same way for piping:
+
+`print Some interesting text > bar | cat`
+
+would both print the statement on screen, as well as write it to the file `bar`.
+With `MULTIOS` not set, the `cat` command would receive no input (and so would
+display nothing).
+
+Note that all the files to be written using the redirection above are opened at
+the same time by the _multio_ process, and not as they are about to be written.
+
+With the `MULTIOS` option set, the word after a redirection is subjected to
+filename expansion. For example:
+
+`print Some text > *.c`
+
+will redirect the text to all the files matching the pattern.
+
+Similarly, if a command wants to read from more than one source, and if the
+`MULTIOS` option is set, then the shell opens a process which has the output
+piped to the input of the command, and which writes through the pipe all the
+outputs of the files specified in the redirections on the command line. For
+example:
+
+`process < foo < bar`
+
+will have the _multio_ process open both files immediately, and have the inputs
+(in order) piped through to _process_. Note that this behaviour differs from
+`cat`, which will open each file separately, as it is about to be read.
+
+`sort < f{oo,ubar}`
+
+is equivalent to
+
+`cat foo fubar | sort`.
+
+Also note that a pipe is an implicit redirection, thus:
+
+`cat bar | sort < foo`
+
+is equivalent to
+
+`cat bar foo | sort` (note the order of inputs).
+
+As noted above, if `MULTIOS` is **not** set, then each redirection replaces the
+one before it for the same file descriptor.
+
+There may be problems when an external program writes to multiple files using
+the _multio_ process. For example:
+
+```zsh
+cat file > bar > foo
+cat bar foo
+```
+
+Since cat is an external program, and the subshell it runs in returns _before_
+the _multio_ process is finished writing (it doesn't wait for it to finish
+before returning), then the second line might not fully display the whole
+contents of the files. The workaround is to run the command as a job in the
+current shell:
+
+`{ cat file } > bar > foo`
+
+Here, the `{...}` job will wait for both files to be written.
+
+#### Redirections with no command
+
+The shell allows for two more forms of the redirections. If redirections are
+specfied on the command line without and other command before or after them,
+then the redirections directly affect the current shell. For example:
+
+`< file`
+
+will redirect the output of the file into the current shell (i.e. output the
+contents of the file to standard output). This is similar to `more file` (in fact
+the shell runs `more` behind the scene, see below).
+
+Similar with input:
+
+`> file`
+
+will write to `file`, when reading from the standard input.
+
+However, some options need to be set for this to work. If `NULLCMD` is not set
+or the option `CSH_NULLCMD` is set, then this causes an error. This is the
+standard _csh_ behaviour that _zsh_ tries to emulate when running in _csh_
+emulation mode.
+
+If the option `SH_NULLCMD` is set, then the builtin `:` is inserted at the
+beginning of the redirections. This is the default when emulating _sh_ or _ksh_.
+This causes a different behaviour than what was described above.
+
+Otherwise, if the parameter `NULLCMD` is set, its value will be used as a
+command with the given redirections (this is the _zsh_ way). `READNULLCMD` can
+be overwritten as well in order to have the input redirection be prepended by
+the command given by `READNULLCMD` instead of that given by `NULLCMD`. The
+defaults for these two are `cat` for `NULLCMD` and `more` for `READNULLCMD`.
+
+For more information see:
+- [The Zsh Manual on Redirection][]
+
+[The Zsh Manual on Redirection]: https://zsh.sourceforge.io/Doc/Release/Redirection.html#Redirection
