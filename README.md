@@ -390,3 +390,36 @@ For more information see:
 - The `alias` man page (`run-help alias`)
 
 [Aliasing in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html#Aliasing
+
+### 9. Quoting
+
+Quoting referes to having a character or a sequence of characters stand for
+themselves. A character can be _quoted_ (i.e. stand for itself), by preceding it
+with a `\`.
+
+A string enclosed between `$'` and `'` is processed in the same way as string
+arguments to the `print` builtin, and the resulting string is considered to be
+entirely quoted (i.e. no expansion happens aside from the expansion that would
+happen using the `print` builtin). All characters enclosed between a pair of `'`
+are considered to be quoted (no expansion happens at all). However, no `'` can
+appear inside this string (even escaped with `\`).
+
+If the option `RC_QUOTES` is set, then a pair of single quotes inside another
+pair of single quotes is turned into a single quote. Without the option set, no
+single quotes can appear inside a pair of quotes.
+
+For example:
+
+`echo ''''`
+
+with `RC_QUOTES` set prints a single quote, otherwise it prints nothing (a
+newline).
+
+Inside a pair of double quotes (`"`), alias expansion does not happen, however
+environment variables expansion happens as usual. Filename generation and
+globbing also does not happen inside double quotes.
+
+For more information see:
+- [The Zsh Manual on Quoting][]
+
+[The Zsh Manual on Quoting]: https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html#Quoting
