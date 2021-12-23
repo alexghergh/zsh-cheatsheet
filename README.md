@@ -369,3 +369,24 @@ In non-interactive shells, or in interactive shells which set the
 `INTERACTIVE_COMMENTS` option, a word beginning with the third character of the
 `histchars` variable (usually `#`) marks a comment, which causes all the
 following characters until the next newline to be ignored by the shell.
+
+### 8. Aliasing
+
+Usually, everything can be aliased on the command line. The command is checked
+for aliases and the text is replaced if an alias was found. For a parameter of
+the command to be replaced, the alias has to be global (defined with `alias
+-g`). For precisely what is subject to alias expansion, see the manual page on
+Aliasing.
+
+Alias expansion is done on the shell input before any other expansion, except
+history expansion. If an alias is defined for the word `foo`, alias expansion
+can be avoided by `\foo`, although nothing stops anything from creating an alias
+for `\foo` as well.
+
+With `POSIX_ALIASES` set, only plain unquoted strings are eligible for aliasing.
+
+For more information see:
+- [Aliasing in the Zsh Manual][]
+- The `alias` man page (`run-help alias`)
+
+[Aliasing in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Shell-Grammar.html#Aliasing
