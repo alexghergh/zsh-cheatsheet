@@ -736,3 +736,20 @@ For more information see:
 - The nohup command manual (`man nohup`)
 
 [The manual page on jobs]: https://zsh.sourceforge.io/Doc/Release/Jobs-_0026-Signals.html#Jobs-_0026-Signals
+
+### 12. Signals
+
+The `INT` and `QUIT` signals for a command are ignore if the job is started in
+the background (using `&`) and the `MONITOR` option is not set. The shell itself
+always ignores the `QUIT` signal. Otherwise, the signals have the values
+inherited by the shell from its parent (for more information see [the special
+functions section](#special-functions)).
+
+There are certain jobs that are ran asynchronously by the shell even if the job
+is not running in the background. Such jobs are process substitution (TODO link)
+or the _multios_ process (see [redirection](#multios)).
+
+For more information see:
+- [The signals section in the Zsh Manual][]
+
+[The signals section in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Jobs-_0026-Signals.html#Signals
