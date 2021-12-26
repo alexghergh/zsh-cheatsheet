@@ -657,3 +657,82 @@ For more information see:
 - [The Zsh Manual on Redirection][]
 
 [The Zsh Manual on Redirection]: https://zsh.sourceforge.io/Doc/Release/Redirection.html#Redirection
+
+### 11. Jobs
+
+If the `MONITOR` option is set, the shell associates each pipeline with a job
+(see [commands]() for what a pipeline is). The current jobs can be listed with
+the `jobs` command. Each job is assigned an integer number. When a job is
+started in the background with `&`, the shell prints a line to standard error
+which gives the job integer number and the job pid (command):
+
+`[1] 18361`
+
+If a job is started with the `&|` or `&!`, then the job is immediately disowned.
+This means it doesn't appear in the jobs table, and cannot be brought back to
+the background, and it is implicitly owned by the parent process.
+
+If a job is running in the foreground, it may be sent to the background by
+means of `Ctrl-Z` (this is the default, could be different, check the output of
+`stty -a`, in `susp`). This sends the `TSTP` signal to the current job. The
+shell will then indicate the job is suspended and prompt the user with another
+shell. The job can then be sent to the background by running `bg` (careful here,
+if the job is suspended it **doesn't run at all**; if the job is in the
+background, it **will run** in the background). Suspending is useful for things
+like _vim_, which do not need to run in the background (unless a long job is
+started inside them, of course), while also sending jobs to the background is
+useful for commands that process something (like a long `cp`, `mv` or something
+similar). The job can also be brought back to foreground with the `fg` command.
+A `Ctrl-Z` is similar to an interrupt, in that pending output and unread input
+are discarded immediately.
+
+A job running in the background will suspend if it tries to read from terminal
+(standard input, file descriptor 0).
+
+Notice however the jobs mechanism works a bit different for shell functions. If
+a shell function is suspended, then this will cause the shell to fork. This is
+necessary to separate the function's environment from the parent shell, so that
+the shell can return to the command line prompt. As a result, even if the
+function is called back by `fg` the function will no longer be part of the
+parent shell, and any variables set by the function will no longer be visible by
+the parent shell. Thus the behaviour is different from the case where the
+function was never suspended.
+
+Background jobs are normally allowed to produce output, however passing the
+option `stty tostop` will disable this, and will suspend backgrounded jobs just
+as if they are trying to read input.
+
+If a command is suspended and later resumed with `fg` or `wait`, zsh restores
+tty modes that were in effect when the job was suspended. This does not apply
+however when the job is resumed via `kill -CONT`, nor when it is continued
+through `bg`.
+
+There are a few ways to refer to jobs in the shell:
+- `%number`: The job with the specified number.
+- `%string`: The last job whose command line begins with `string`.
+- `%?string`: The last job whose command line contains `string`.
+- `%%`: The current job.
+- `%+`: Same as `%%`.
+- `%-`: The previous job.
+
+The shell normally informs the user if a job gets stuck and cannot continue
+(waiting for input or output if `stty tostop` is set). If the option `NOTIFY` is
+not set, then the shell waits to inform the user right before printing the next
+prompt.
+
+When the `MONITOR` option is set, each background job that completes triggers
+any trap set for `CHLD`.
+
+If the user tries to exit the shell when there are background running jobs, then
+the shell inform the user about it. If a second exit is issued immediately
+after, then the shell terminates all the running jobs and exits the shell
+without and additional warning. To avoid this, then the user can either `disown`
+the running jobs or run the jobs with the `nohup` command.
+
+For more information see:
+- [The manual page on jobs][]
+- The wait builtin manual (`run-help wait`)
+- The disown builtin manual (`run-help disown`)
+- The nohup command manual (`man nohup`)
+
+[The manual page on jobs]: https://zsh.sourceforge.io/Doc/Release/Jobs-_0026-Signals.html#Jobs-_0026-Signals
