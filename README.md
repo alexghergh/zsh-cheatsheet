@@ -753,3 +753,124 @@ For more information see:
 - [The signals section in the Zsh Manual][]
 
 [The signals section in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Jobs-_0026-Signals.html#Signals
+
+### 13. Arithmetic evaluation
+
+The Zsh shell has arithmetic capabilities, using integers and floating point
+numbers. The arithmetic evaluation is forced either via the builtin `let` or by
+a substitution of the form `$((...))`. The shell is compiled to use integers of
+8 bytes where possible, otherwise 4 bytes. This can be tested with a number that
+can only be represented using 8 bytes (for example `print $((12345678901))`). If
+the number is printed unchanged, the precision is at least 8 bytes. Floating
+point always uses the _double_ type, with whatever precision is provided by the
+library and the compiler (a double usually has 8 bytes as well, on most modern
+computers).
+
+The `let` builtin takes arithmetic expressions as arguments, where each one of
+them is evaluated separately. Since most of the arithmetic operators requires
+quoting, an alternative form is provided, which begins with `((` and ends with
+`))`; all the characters between are treated as quoted, and everything in
+between is considered as one argument of the `let` command. The return status is
+0 if the result of the mathematical expression is non-zero, 1 if the result is
+zero, and 2 if an error occurred.
+
+For example:
+
+`let "i = 1 + 2"`
+
+is equivalent to
+
+`(( i = 1 + 2 ))`
+
+both assigning value 3 to the variable _i_ and returning zero to the shell.
+
+Integers can be specified in bases different than base 10. A leading `0x` or
+`0X` denotes hexadecimal, while a leading `0b` or `0B` denotes binary. The base
+can also be specified via `base#number`, where `base` is an integer between 2
+and 36. For backwards compatibility the form `[base]n` is also accepted.
+
+The integer or number can additionally contain underscores after the first
+digit, to aid in visual guidance (for example, `1_000_000` or `0xff_ff_ff_ff`).
+
+It's also possible to specify the output base of a number, with the construct
+`[#base]`, for example `[#16]`:
+
+`print $(( [#8] x = 32 ))`
+
+outputs `8#40`.
+
+The same can be achieved through `typeset -i 16 x`, where the option `-i base`
+specified the implicit output base of the number.
+
+The output can also be separated by underscores by adding an underscore to the
+base, followed by a number specifying how many digits should be in a group. For
+example:
+
+`print $(( [#16_4] x = 65536 ** 2))`
+
+outputs `16#1_00C8_2710`.
+
+If the option `C_BASES` is set, hexadecimal number are output in C format, i.e.
+`0xFF` instead of `16#FF`. If the option `OCTAL_ZEROES` is set, octal numbers
+will also be displayed like `077` instead of `8#77`. These options have no
+effect on bases other than 16 and 8, and has no effect on the input, as all the
+above variants are understood anyway.
+
+The output base can also be suppressed by doubling the `#`, i.e. `[##16]`.
+
+The operators supported in the native mode of operation are (listed in
+decreasing order of precedence):
+- `+ - ! ~ ++ --`: unary plus/minus, logical NOT, complement, pre- and post-
+  decrement and increment
+- `<< >>`: bitwise shifts
+- `&`: bitwise AND
+- `^`: bitwise XOR
+- `|`: bitwise OR
+- `**`: exponentiation
+- `* / %`: multiplication, division, modulus (remainder)
+- `+ -`: addition/subtraction
+- `< > <= >=`: comparison
+- `== !=`: equality or inequality
+- `&&`: logical AND
+- `|| ^^`: logical OR, XOR
+- `? :`: ternary operator
+- `= += -= *= /= %= &= ^= |= <<= >>= &&= ||= ^^= **=`: assignment
+- `,`: comma separator
+
+With the option `C_PRECEDENCES` set, the precedences of some of the operators
+changes, as follows:
+- `+ - ! ~ ++ --`: unary plus/minus, logical NOT, complement, pre- and post-
+  decrement and increment
+- `**`: exponentiation
+- `* / %`: multiplication, division, modulus (remainder)
+- `+ -`: addition/subtraction
+- `<< >>`: bitwise shifts
+- `< > <= >=`: comparison
+- `== !=`: equality or inequality
+- `&`: bitwise AND
+- `^`: bitwise XOR
+- `|`: bitwise OR
+- `&&`: logical AND
+- `^^`: logical XOR
+- `||`: logical OR
+- `? :`: ternary operator
+- `= += -= *= /= %= &= ^= |= <<= >>= &&= ||= ^^= **=`: assignment
+- `,`: comma separator
+
+Mathematical functions can be used by loading the module `zsh/mathfunc` using
+the `zmodload` builtin. The module provides standard floating point mathematical
+functions.
+
+#### Getting the numerical value of characters
+
+The shell can output the numerical value of a certain character sequence such as
+`a`, `^A`, or `\M-\C-x` using the form `##x`, where `x` is one of such sequences
+mentioned before.
+
+Character values are according to the current locale. For handling multibyte
+characters, the value `MULTIBYTE` must be set.
+
+For more information see:
+- [The arithmetic evaluation section in the Zsh Manual][]
+
+[The arithmetic evaluation section in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Arithmetic-Evaluation.html#Arithmetic-Evaluation
