@@ -874,3 +874,123 @@ For more information see:
 - [The arithmetic evaluation section in the Zsh Manual][]
 
 [The arithmetic evaluation section in the Zsh Manual]: https://zsh.sourceforge.io/Doc/Release/Arithmetic-Evaluation.html#Arithmetic-Evaluation
+
+### 14. Conditional expressions
+
+A conditional expression is what comes inside `[[`, usually inside an `if`,
+`while` or other complex commands (see the section above on complex commands for
+more on this). These are helpful to test properties of different files or
+strings.
+
+- `-a <file>`: True if `<file>` exists.
+- `-b <file>`: True if `<file>` exists and is a special block file.
+- `-c <file>`: True if `<file>` exists and is a special character file.
+- `-d <file>`: True if `<file>` exists and is a directory.
+- `-e <file>`: True if `<file>` exists.
+- `-f <file>`: True if `<file>` exists and is a regular file.
+- `-g <file>`: True if `<file>` exists and has its `setgid` bit set.
+- `-h <file>`: True if `<file>` exists and is a symbolic link.
+- `-k <file>`: True if `<file>` exists and has its `sticky` bit set.
+- `-n <string>`: True if length of `<string>` is non-zero.
+- `-o <option>`: True if `<option>` is on.
+- `-p <file>`: True if `<file>` exists and is a special FIFO file (named pipe).
+- `-r <file>`: True if `<file>` exists and is readable by the current process.
+- `-s <file>`: True if `<file>` exists and has size greater than zero.
+- `-t <fd>`: True if file descriptor `<fd>` is open and is associated with a
+  terminal device.
+- `-u <file>`: True if `<file>` exists and has its `setuid` bit set.
+- `-v <varname>`: True if shell variable `<varname>` is set.
+- `-w <file>`: True if `<file>` exists and is writeable by the current process.
+- `-x <file>`: True if `<file>` exists and is executable by the current process.
+  If the `<file>` is a directory, then the process had permission to search
+  inside the directory.
+- `-z <string>`: True if length of `<string>` is zero.
+- `-L <file>`: True if `<file>` exists and is a symbolic link.
+- `-O <file>`: True if `<file>` exists and is owned by the effective user ID of
+  the process.
+- `-G <file>`: True if `<file>` exists and its group matches the effective group
+  ID of the process.
+- `-S <file>`: True if `<file>` exists and is a socket.
+- `-N <file>`: True if `<file>` exists and its access time is not newer than its
+  modification time.
+- `<file1> -nt <file2>`: True if `<file1>` exists and is newer than `<file2>`.
+- `<file1> -ot <file2>`: True if `<file1>` exists and is older than `<file2>`.
+- `<file1> -ef <file2>`: True if `<file1>` and `<file2>` exist and refer to the
+  same effective file.
+- `<string> = <pattern>` or `<string> == <pattern>`: True if `<string>` matches
+  `<pattern>`.
+- `<string> != <pattern>`: True if `<string>` does not match `<pattern>`.
+- `<string> =~ <regexp>`: True if `<string>` matches the regular expression
+  `<regexp>`. This is influenced by a few options:
+    - If the option `RE_MATCH_PCRE`, then `<regexp>` is tested as a PCRE
+      expression using the `zsh/pcre` module, otherwise it is tested as a POSIX
+      standard extended regular expression using the `zsh/regex` module.
+    - If the option `BASH_REMATCH` is not set the scalar parameter `MATCH`is set
+      to the substring that matched the pattern, and the integer parameters
+      `MBEGIN` and `MEND` to the index of the start and end respectively of the
+      match in `<string>`, such that if `<string>` is contained in variable
+      `var`, then `${var[$MBEGIN,$MEND]}` is exactly equivalent to `$MATCH`. The
+      additional Zsh array parameters `$match`, `$mbegin` and `$mend` are also
+      set during this process. `$match` is set to all the substrings that
+      matched paranthesised subexpressions, while `$mbegin` and `$mend` are set
+      to the start and end positions, respectively, of the substring matches.
+      For an example:
+
+        ```zsh
+        if [[ "this is a short strit" =~ "s(...)t s(...t)" ]]; then
+            print $MATCH
+            print $MBEGIN
+            print $MEND
+            print $match
+            print $mbegin
+            print $mend
+        fi
+        ```
+
+      will result in:
+
+        ```zsh
+        short strit
+        11
+        21
+        hor trit
+        12 18
+        14 21
+        ```
+- `<string1> < <string2>`: True if `<string1>` comes before `<string2>` based on
+  ASCII values of characters.
+- `<string1> > <string2>`: True if `<string1>` comes after `<string2>` based on
+  ASCII values of characters.
+- `<exp1> -eq <exp2>`: True if `<exp1>` is numerically equal to `<exp2>`. For
+  purely mathematical or numerical comparisons, the arithmetic evaluation
+  (`((..))`) should be used instead (see [arithmetic
+  evaluation](#arithmetic-evaluation) above).
+- `<exp1> -ne <exp2>`: True if `<exp1>` is numerically not equal to `<exp2>`.
+- `<exp1> -lt <exp2>`: True if `<exp1>` is numerically less than `<exp2>`.
+- `<exp1> -gt <exp2>`: True if `<exp1>` is numerically greater than `<exp2>`.
+- `<exp1> -le <exp2>`: True if `<exp1>` is numerically less than or equal to `<exp2>`.
+- `<exp1> -ge <exp2>`: True if `<exp1>` is numerically greater than or equal `<exp2>`.
+- `( <exp> )`: True if `<exp>` is true.
+- `! <exp>`: True if `<exp>` is false.
+- `<exp1> && <exp2>`: True if both `<exp1>` and `<exp2>` are true.
+- `<exp1> || <exp2>`: True if either `<exp1>` or `<exp2>` are true.
+
+If the expression `[[ $var ]]` is used, it is treated as `[[ -n $var ]]`, i.e.
+tests whether the variable `var` expands to a non-zero length string.
+
+The expansion on `<string>`, `<file>` and `<pattern>` happens normally, however
+they are constrained to be a single word while being evaluated, similar to using
+double quotes around the expansions.
+
+Note that normal filename expansion does not happen inside `[[`. It can be
+forced by setting the option `EXTENDED_GLOB` and appending a `(#q)` at the end
+of the string. The expansion happens regardless inside `[` and `test`.
+
+In the numeric comparisons, the expressions `<exp>` undergo normal expansion as
+if they were enclosed inside `$((..))`.
+
+For more information see:
+- [The Zsh manual on conditional expressions][]
+- [The section above on complex commands, last bullet point](#complex-commands)
+
+[The Zsh manual on conditional expressions]: https://zsh.sourceforge.io/Doc/Release/Conditional-Expressions.html#Conditional-Expressions
