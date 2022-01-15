@@ -994,3 +994,197 @@ For more information see:
 - [The section above on complex commands, last bullet point](#complex-commands)
 
 [The Zsh manual on conditional expressions]: https://zsh.sourceforge.io/Doc/Release/Conditional-Expressions.html#Conditional-Expressions
+
+### 15. Prompt expansion
+
+There are certain prompt sequences that undergo a special form of expansion.
+This expansion type is also available while using the `-P` flag to the `print`
+command, so this can be used to see the output of a prompt sequence before
+changing the actual prompt.
+
+If `PROMPT_SUBST` is on, then additionally parameter expansion, command
+substitution and arithmetic expansion happen inside a prompt.
+
+If `PROMPT_BANG` is on, a `!` in the prompt is replaced by the current history
+event number. A literal `!` can be represented as `!!`.
+
+If `PROMPT_PERCENT` is on, certain escape sequences that start with `%` are
+expanded.
+
+#### Single prompt escapes (single character percent expansion)
+
+Special cases:
+- `%%`: A literal `%`.
+- `%)`: A literal `)`.
+
+Login information:
+- `%l`: The tty the user is logged in on, without the `/dev/` prefix (Example:
+  `pts/8`). If the name starts with `/dev/tty`, the prefix is stripped.
+- `%y`: The tty the user is logged in on, without the `/dev/` prefix. However
+  this does not treat `/dev/tty` specifically.
+- `%M`: The full machine hostname.
+- `%m`: The hostname up to the first `.`. An integer may follow the `%` to
+  specify how many components of the hostname should be included in the
+  string. Can also work with a negative integer, in which case trailing
+  components are shown.
+- `%n`: The `$USERNAME` variable.
+
+Shell state:
+- `%#`: A `#` if the shell runs with privileges, a `$` otherwise.
+- `%?`: The return status of the last command.
+- `%_`: The status of different constructs (i.e. `if`, `while` etc.) that have
+  been started. Most useful in `PS2` prompts or in `PS4` for debugging with
+  `XTRACE` option on.
+- `%^`: The status of different constructs in reverse. Same as above, except
+  it's more useful in `RPS2` prompts.
+- `%d` or `%/`: Current working directory. A number following the `%` specifies
+  how many directories to show trailing the current directory. Zero means the
+  whole path. A negative integer is used for leading components.
+- `%~`: Same as above, except if current working directory starts with `$HOME`,
+  that part is replaced with `~`. Also works with named directories.
+- `%e`: Evaluation depth of the current sourced file, shell function, or `eval`.
+  This is incremented or decremented evert time the value of `%N` is set or
+  reverted to a previous value (sort-of like a call stack). Most useful for
+  debugging in `PS4` prompts.
+- `%h` or `%!`: Current history event number.
+- `%i`: The current line number being executed as part of a sourced file, shell
+  function or `eval`. Most useful for debugging in `PS4` prompts (also see `%e`
+  above).
+- `%I`: The line number being currently executed in file `%x`. Shows the line
+  number in the file, even if a shell function is currently executed, whereas
+  `%i` above would show the line number in the function.
+- `%j`: The current number of jobs.
+- `%L`: The current value of `$SHLVL`.
+- `%N`: The name of the script, source file or shell function that zsh is
+  currently executing, whichever was started more recently. If no script is
+  running, then `%N` takes the value of `$0`.
+- `%x`: The name of the file containing the source code currently being
+  executed. Behaves like `%N`, except that only files are shown, not functions
+  or `eval` commands.
+- `%c` or `%.` or `%C`: Trailing component of the current working directory. An
+  integer may follow the `%` to get more than one component. Unless `%C` is
+  used, tilde contraction is performed first. These should not be used anymore
+  though, but instead `%1~` for `%c` and `%1/` for `%C` should be used instead.
+
+Date and time:
+- `%D`: Current date in `yy-mm-dd` format.
+- `%T`: Current time of day, in 24-hour format.
+- `%t` or `%@`: Current time of day, in 12-hour, am/pm format.
+- `%*`: Current time of day in 24-hour format, with seconds.
+- `%w`: The date in `day dd` format.
+- `%W`: The date in `mm/dd/yy` format.
+- `%D{<string>}`: `<string>` is formatted using the `strftime` format (see `man
+  strftime(3)` for more details). The are a couple of extra Zsh extensions with
+  no extra leading zero or space if the number is a single digit:
+    - `%f`: a day of the month.
+    - `%K`: the hour of the day in 24-hour format.
+    - `%L`: the hour of the day in 12-hour format.
+
+  In addition to this, if the system supports POSIX `gettimeofday()` system
+  call, `%.` provides decimal fractions of a second since the epoch with leading
+  zeroes. By default only 3 decimal places are provided, but up to 9 can be
+  specified. This means that `%6.` outputs microseconds, and `%9.` outputs
+  nanoseconds.
+
+Visual effects:
+- `%B (%b)`: Start (stop) bold mode.
+- `%E`: Clear to the end of the line.
+- `%U (%u)`: Start (stop) underline mode.
+- `%S (%s)`: Start (stop) standout mode (inversion of background and foreground
+  colors).
+- `%F (%f)`: Start (stop) using a different foreground color, if supported by
+  the terminal. The colour can be specified in two ways: either as a numeric
+  argument, or by a sequence following the escape sequence (i.e. `%F{red}`). The
+  available such sequences can be found in the `fg zle_highlight` attribute
+  (TODO link to "zle line editor" - "character highlighting"). Numeric colors
+  are allowed also in the second format.
+- `%K (%k)`: Start (stop) using a different bacKground color. Same as above for
+  formats.
+- `%{...%}`: Include a string as a literal escape sequence. The string withing
+  the braces should not change the cursor position. Brace pairs can be nested.
+  A positive numeric argument can be specified. Treated the same as below for
+  `%G`.
+- `%G`: Withing a `%{...%}`, include a _glitch_: assume that a single character
+  width will be output. This is helpful when trying to output characters that
+  are not correctly understood by the shell, like different character sets on
+  some terminals. Specifying a number for `%G` will assume a different character
+  width (i.e. `%{<seq>%2G%}` will assume a character width of 2).
+
+Conditional substrings in prompts:
+- `%v`: The value of the first element of the `psvar` array. An integer can be
+  given to specify the element in the array. Negative integers count from the
+  end.
+- `%(<x>.<true-text>.<false-text>)`: Ternary conditional expression. The
+  separator between the elements is arbitrary. The same character should be used
+  however for both places. Both `<true>` and `<false>` elements may contain
+  arbitrary escape sequences, including further ternary expressions.
+
+  The left parenthesis may be preceded or followed by a positive integer `n`,
+  which defaults to zero. A negative integer will be multiplied by `-1`,
+  exception being the case below for `l`.
+
+  The test character `<x>` may be any of the following:
+    - `!`: True if the shell is running with privileges.
+    - `#`: True if the effective uid of the process is `n`.
+    - `?`: True if the exit status of the last command was `n`.
+    - `_`: True if at least `n` shell constructs have been started.
+    - `C` or `/`: True if the current absolute path has at least `n` elements
+      relative to the root directory, hence `/` (root) is counted as 0 elements.
+    - `c` or `.` or `~`: True if the current path, with prefix replacement, has
+      at least `n` elements relative to the root directory.
+    - `D`: True if month is equal to `n` (January = 0).
+    - `d`: True if day of month is equal to `n`.
+    - `e`: True if evaluation depth is at least `n`.
+    - `g`: True if the effective gid of the process is `n`.
+    - `j`: True if the number of jobs is at least `n`.
+    - `L`: True if the `SHLVL` parameter is at least `n`.
+    - `l`: True if at least `n` characters have already been printed on the
+      current line. When `n` is negative, true if at least `abs(n)` characters
+      remain before the opposite margin (thus the left margin for `RPROMPT`).
+    - `S`: True if the `SECONDS` parameter is at least `n`.
+    - `T`: True if the time in hours is equal to `n`.
+    - `t`: True if the time in minutes is equal to `n`.
+    - `v`: True if the array `psvar` has at least `n` elements.
+    - `V`: True if element `n` of the `psvar` array is set and non-empty.
+    - `w`: True if day of the week is equal to `n` (Sunday = 0).
+- `%<string<` or `%>string>` or `%[xstring]`: Specified truncation behaviour for
+  the remainder of the prompt string. This does not undergo prompt expansion.
+  `string` will be displayed instead of the truncated part.
+
+  The numeric argument, which in the third form may appear immediately after
+  `[`, specifies the maximum permitted length of the various strings that can be
+  displayed in the prompt. If the integer is negative, then the truncation
+  length is calculated by subtracting `abs(n)` from the number of remaining
+  characters on the current prompt line. If this results in zero or negative
+  length, then a length of 1 is used instead. This means that a negative integer
+  does so that after truncation, there are still `n` characters before the right
+  margin (or the left margin in case of `RPROMPT`).
+
+  The form with `<` truncates at the left of the string, while the form with `>`
+  truncates at the right of the string.
+
+  For example:
+
+  ```zsh
+  print -P `%8<rob<pikeypikester`
+  > robester
+  ```
+
+  For something more useful (like path truncation):
+
+  ```zsh
+  print -P `%8<..<%/`
+  > ..hing/here
+  ```
+
+  If `string` happens to be longer than the actual truncation length, it will
+  appear in full, replacing the truncated string:
+
+  ```zsh
+  print -P `%2<rob<pikeypikester`
+  > rob
+  ```
+
+  A truncation with argument zero (i.e. `%<<`), marks the end of the part to be
+  truncated, while turning truncation off from there on. Note that `%-0<<`
+  specifies that the prompt is truncated at the right margin.
