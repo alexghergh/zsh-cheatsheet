@@ -1188,3 +1188,176 @@ Conditional substrings in prompts:
   A truncation with argument zero (i.e. `%<<`), marks the end of the part to be
   truncated, while turning truncation off from there on. Note that `%-0<<`
   specifies that the prompt is truncated at the right margin.
+
+### 16. General expansion
+
+There are general expansion types that happen inside the shell. The order of the
+expansions is as follows:
+- `History expansion`: Only performed in interactive shells.
+- `Alias expansion`: Aliases are expanded immediately, before the command line
+  is actually parsed (see [aliasing](#aliasing) for more).
+- `Process substitution`, `Parameter expansion`, `Command substitution`,
+  `Arithmetic expansion`, `Brace expansion`: The five expansions happen in
+  left-to-right fashion. What this means is that all process substitutions are
+  replaced on the command line, before parameter expansion starts to take place.
+  After all the expansions take place, all unquoted occurrences of the
+  characters `\`, `'`, `"` are removed.
+- `Filename expansion`: If the option `SH_FILE_EXPANSION` is set, the order of
+  expansion is modified for compatibility with `sh` and `ksh`. In that case,
+  `filename expansion` is performed immediately after `alias expansion`,
+  preceding the set of five expansions mentioned above.
+- `Filename generation`: This expansion is always done last (commonly referred
+  to as _globbing_).
+
+All these expansions are further explained below:
+
+#### History expansion
+
+This form of expansion only applies in interactive shells.
+
+This kind of expansion allows you to use command line history, i.e. use already
+interpreted commands to construct the current command. This simplifies
+repetition of long commands or spelling errors.
+
+Immediately after being executed, each command is assigned a number and saved in
+the history of the shell commands. The size of the history is controlled by the
+`HISTSIZE` parameter. Each saved command is called a history _event_. The
+history number in prompt expansion is the number to be assigned to the _next_
+command (see [prompt expansion](#prompt-expansion) above).
+
+History expansion begins with the first character of `histchars` (by default
+`!`). It can occur anywhere inside the command line, including inside double
+quotes, but not inside single quotes(`'..'` or `$'..'`), nor when escaped with a
+backslash.
+
+The first character is then followed by an optional [event designator](#event-designators) and then an
+optional [word designator](#word-designators). If neither of these is present,
+then no history expansion occurs.
+
+History expansion lines are echoed before being executed, and before any other
+expansions take place. It's this line that gets saved into history.
+
+##### Event designators
+
+An event designator is a reference to an entry in the history list:
+- `!`: Start a history expansion, except when followed by a blank space, a
+  newline, `=` or `(`.
+- `!!`: Refer to the previous command.
+- `!<n>`: Refer to command-line `<n>`.
+- `!<-n>`: Refer to the current command-line minus `<n>`.
+- `!<str>`: Refer to the most recent command starting with `<str>`.
+- `!?<str>[?]`: Refer to the most recent command containing `<str>`. The
+  trailing `?` is necessary if the next part is not to be considered part of
+  `<str>`.
+- `!#`: Refer to the current command line typed in so far. The line is treated
+  to be complete up to and including the word before the reference `!#`.
+- `!{...}`: Encapsulate a history reference from adjacent characters.
+
+##### Word designators
+
+A word designator is a reference to a part of the event specified by the event
+designator. If no event designator is specified, then the last history entry
+(the last command executed) is to be considered the event designator.
+
+The word designators can be separated from the event designators using `:`. It
+may be omitted if the word designator starts with `^`, `$`, `*`, `-` or `%`.
+
+Word designators include:
+- `0`: The first input word (the command that was executed).
+- `n`: The `n-th` argument.
+- `^`: The first argument (similar to the above case when `n` is 1).
+- `$`: The last argument.
+- `%`: The word matched by the most recent `?<str>` search.
+- `x-y`: A range of words; `x` defaults to 0.
+- `*`: All the arguments, or a null value if there are none.
+- `x*`: Abbreviates to `x-$`.
+- `x-`: Like `x*`, but omitting word `$` (omits the last word).
+
+Additionally, the `%` can appear inside a command only if there was an earlier
+`!?` expansion (possibly in an earlier command). Otherwise it results in an
+error.
+
+---
+
+By default, a history reference with no event designator refers to the same
+event as any preceding history reference on the same command line. If it's the
+only history reference on the command line, then it refers to the previous
+command line event.
+
+With `CSH_JUNKIE_HISTORY` set, then every history reference with no event
+specification _always_ refers to the previous command line event. To see with an
+example what this means: `!!:1` always refers to the first argument of the
+previous command, and `!!:$` always refers to the last argument of the previous
+command. With `CSH_JUNKIE_HISTORY` set, the events `!:1` and `!:$` work in the
+same manner as the above examples. However, with `CSH_JUNKIE_HISTORY` unset,
+then `!:1` and `!:$` refer to the first and last arguments of the event
+specified by the nearest history reference preceding those two, or the previous
+command if there isn't such a history reference.
+
+##### Modifiers
+
+After the optional word designator, there can additionally be a sequence of one
+or more of the following modifiers, separated by `:`. These modifiers also work
+on the result of _filename generation_ and _parameter expansion_, except where
+noted below.
+
+The modifiers that can appear in a history expansion are:
+- `a`: Turn a file name into an absolute path: prepends the current directory,
+  and removes any unnecessary `./` or `../` and the segments preceding them.
+  Basically, if the path to a file is correctly specified, then the absolute
+  path will also work. For example, suppose there is a file `/home/user/file.c`.
+  Involving the history reference mechanism from `/home/user/project/subproject`
+  with the previous command `echo ../../file.c` works as `echo !!:1:a` and will
+  output `echo /home/user/file.c` correctly. The transformation however does not
+  care about what actually is in the filesystem.
+- `A`: Performs the same transformations as above, but then passes the path
+  through `realpath(3)`, in order to follow potential symbolic links (the form
+  above doesn't). **Note:** On some inputs, `foo:A` and `realpath(foo)` might be
+  different. See the modifier `P` below.
+- `c`: Resolve a command name into an absolute path by searching the `PATH`
+  variable.
+- `e`: Remove everything except the part after the `.` in a filename.
+- `h [digits]`: Remove the trailing pathname component similar to `dirname`
+  (keep the head of the pathname). If the `h` is followed by any digits, that
+  number of leading components is preserved.
+- `l`: Convert to lowercase.
+- `p`: Print the new command without executing it. Only for history expansion.
+- `P`: Turn the file name into an absolute path, similar to `realpath(3)`. Also
+  see the `A` and `a` modifiers above.
+- `q`: Quote the substituted words, escaping further substitutions.
+- `Q`: Remove one level of quotes from the substituted words.
+- `r`: Remove a filename extension leaving the root name. Strings with no
+  filename extension are not modified.
+- `s/l/r[/]`: Substitute `l` for `r`. The substitution is only done for the
+  first string that matches `l`. For arrays and for filename generation, this
+  applies for each word of the expanded text. The forms `gs/l/r` and `s/l/r/:G`
+  perform global substitution, meaning they substitute every occurrence of `l`
+  for `r`, not just the first one. There is more information in the manual about
+  what `l` and `r` can contain and how the substitution operates in-depth.
+- `&`: Repeat the previous `s` substitution. Like `s`, may be preceded
+  immediately by a `g`.
+- `t[digits]`: Remove all leading pathname components, leaving the final
+  component only (_tail_ or _trailing_). This works like `basename`.
+- `u`: Converts to uppercase.
+- `x`: Like `q`, but break into words at whitespace. Does not work with
+  parameter expansion.
+
+---
+
+The rest of the modifiers only work with parameter expansion and filename
+generation.
+
+- `f`: Repeats the immediately following until the resulting word doesn't change
+  anymore.
+- `F:expr:`: Like `f`, but repeats only _n_ times if the expression `expr`
+  evaluates to _n_.
+- `w`: Makes the immediately following modifier work on each word in the string.
+- `W:sep:`: Like `w`, but words are considered to be part of the string that are
+  separated by `sep`.
+
+For more information see:
+- [The Expansion section in the Zsh manual (containing all the expansions
+  mentioned above)][]
+
+[The Expansion section in the Zsh manual (containing all the expansions
+  mentioned above)]: https://zsh.sourceforge.io/Doc/Release/Expansion.html#Expansion
