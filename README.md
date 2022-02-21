@@ -149,7 +149,7 @@ For more information see:
 #### Simple commands and pipelines
 
 A `simple command` is a word (the actual command) followed by additional
-parameters, separated by whitespace. If parameter assignments preced the
+parameters, separated by whitespace. If parameter assignments precede the
 command, these modify the environment in which the command in running. It's
 important to note that commands (careful, commands that are **not** builtins)
 run in a subshell, with a different environment from the parent shell. The
@@ -393,7 +393,7 @@ For more information see:
 
 ### 9. Quoting
 
-Quoting referes to having a character or a sequence of characters stand for
+Quoting refers to having a character or a sequence of characters stand for
 themselves. A character can be _quoted_ (i.e. stand for itself), by preceding it
 with a `\`.
 
@@ -1043,7 +1043,7 @@ Shell state:
 - `%~`: Same as above, except if current working directory starts with `$HOME`,
   that part is replaced with `~`. Also works with named directories.
 - `%e`: Evaluation depth of the current sourced file, shell function, or `eval`.
-  This is incremented or decremented evert time the value of `%N` is set or
+  This is incremented or decremented every time the value of `%N` is set or
   reverted to a previous value (sort-of like a call stack). Most useful for
   debugging in `PS4` prompts.
 - `%h` or `%!`: Current history event number.
@@ -1100,11 +1100,11 @@ Visual effects:
   are allowed also in the second format.
 - `%K (%k)`: Start (stop) using a different bacKground color. Same as above for
   formats.
-- `%{...%}`: Include a string as a literal escape sequence. The string withing
+- `%{...%}`: Include a string as a literal escape sequence. The string within
   the braces should not change the cursor position. Brace pairs can be nested.
   A positive numeric argument can be specified. Treated the same as below for
   `%G`.
-- `%G`: Withing a `%{...%}`, include a _glitch_: assume that a single character
+- `%G`: Within a `%{...%}`, include a _glitch_: assume that a single character
   width will be output. This is helpful when trying to output characters that
   are not correctly understood by the shell, like different character sets on
   some terminals. Specifying a number for `%G` will assume a different character
