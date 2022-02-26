@@ -1355,9 +1355,58 @@ generation.
 - `W:sep:`: Like `w`, but words are considered to be part of the string that are
   separated by `sep`.
 
-For more information see:
-- [The Expansion section in the Zsh manual (containing all the expansions
-  mentioned above)][]
+#### Process substitution
 
-[The Expansion section in the Zsh manual (containing all the expansions
-  mentioned above)]: https://zsh.sourceforge.io/Doc/Release/Expansion.html#Expansion
+A process substitution takes place in command arguments that look like
+`<(list)`, `>(list)` or `=(list)`. See [Simple commands](#simple-commands-and-pipelines) for what `list`
+refers to.
+
+Note that `<<(list)` is not a special form of process substitution. It is the
+same as `< <(list)`, redirecting standard input from the result of process
+substitution.
+
+In the case of `<` or `>` forms, the shell runs the commands in `list` as a
+subprocess of the current job executing the shell command line. The result is
+either placed in a device file corresponding to a file descriptor (if the system
+supports the `/dev/fd` mechanism), or a named pipe if the system supports named
+pipes (FIFOs). The result of the process substitution is the literal file name,
+that has the contents of running the command. In the case of the `/dev/fd`
+mechanism, the actual name of the file can be seen by running `echo >(true)`.
+
+For the `>` form, writing on this file will provide input for `list`, while for
+the `<` form, the results of running `list` will write the file, that will
+provide input for the current command. As an example:
+
+```zsh
+paste <(cut -f1 file1) <(cut -f3 file2) | tee >(process1) >(process2) >/dev/null
+```
+
+If the `cut` processing was not needed, then simply doing the below would be
+enough:
+
+```zsh
+paste file1 file2 | ...
+```
+
+This illustrates a good point where process substitution is useful. The most
+important thing to remember is that the forms `>(...)` and `<(...)` are
+**literally** replaced by a file name on the command line following process
+substitution (at least in the case of the `/dev/fd` mechanism). There might be
+cases where the command cannot read from a file, but rather expects input
+redirected to it. The form `<<(...)` can then be used.
+
+The `=(...)` form is very similar to `<(...)`, with the difference that the
+former uses a temporary file instead of a device file, which is useful in places
+where commands are expected to lseek through the file (see `man lseek(2)`).
+
+There are other places where the `=(...)` is useful, since both the `<(...)` and
+the `>(...)` have drawbacks in certain cases. For more see [the process substitution
+section in the manual](https://zsh.sourceforge.io/Doc/Release/Expansion.html#Process-Substitution).
+
+A good explanation on process substitution in [this post](https://stackoverflow.com/a/33532589).
+
+
+For more information see:
+- [The Expansion section in the Zsh manual][]
+
+[The Expansion section in the Zsh manual]: https://zsh.sourceforge.io/Doc/Release/Expansion.html#Expansion
