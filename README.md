@@ -1405,6 +1405,482 @@ section in the manual](https://zsh.sourceforge.io/Doc/Release/Expansion.html#Pro
 
 A good explanation on process substitution in [this post](https://stackoverflow.com/a/33532589).
 
+#### Parameter expansion
+
+The character `$` introduces parameter expansion. See parameters (TODO link) for
+what parameters could be.
+
+It's important to note how arrays work in Zsh, as it behaves quite differently
+from other shells. With the option `SH_WORD_SPLIT`, array elements are
+automatically split on whitespace. Null words (empty strings) are not taken into
+account, similar to other shells. To avoid deletion of null words, arrays and
+scalars can be quoted: `"$scalar"` for scalars and `"${(@)array}"` or
+`"${array[@]}"` for arrays. **Note** that the forms `${(@)array}` and
+`"${(@)array}"` (with quotes) are different in certain circumstances.
+
+For example:
+
+```zsh
+array=("first word" "" "third word")
+
+# with both SH_WORD_SPLIT set and unset
+print $array[1]
+> first word
+
+print $array[2]
+> 
+
+print $array[3]
+> third word
+
+# with SH_WORD_SPLIT set
+for word in $array; do print $word; done
+> first
+> word
+> third
+> word
+
+for word in ${(@)array}; do print $word ; done
+> first
+> word
+> third
+> word
+
+for word in "${(@)array}"; do print $word; done
+> first word
+> 
+> third word
+
+# with SH_WORD_SPLIT unset
+for word in $array; do print $word; done
+> first word
+> third word
+
+for word in ${(@)array}; do print $word ; done
+> first word
+> third word
+
+for word in "${(@)array}"; do print $word; done
+> first word
+> 
+> third word
+```
+
+Similar rules apply to scalars.
+
+Note that parameter expansions can also be nested.
+
+The following expansions are possible:
+- `${name}`: The value of the parameter name is substituted. The braces are
+  required for any letter, digit or underscore that is not to be interpreted as
+  part of `name`. If `name` is an array parameter, and the option `KSH_ARRAYS`
+  is not set, then the value of each element of `name` is substituted, one
+  element per word. The value of `SH_WORD_SPLIT` further affects if the elements
+  are split on whitespace or not (see above). With `KSH_ARRAYS` set, the
+  expansion results only in the first element of the array.
+- `${+name}`: If `name` is the name of a **set** parameter, then `1` is
+  substituted, otherwise `0`.
+- `${name-word}` or `${name:-word}`: If `name` is set, or in the second form is
+  _non-empty_ (_non-null_), then substitute its value, otherwise substitute `word`. In the
+  second form `name` may be omitted, in which case `word` is always substituted.
+  Useful for _default_-like cases (e.g. `${HOME:-/home/user}`).
+- `${name+word}` or `${name:+word}`: If `name` is set, or in the second form is
+  _non-empty_ (_non-null_), then substitute `word`, otherwise substitute
+  nothing. Resembles an **if**-case, without and **else** branch.
+- `${name=word}` or `${name:=word}` or `${name::=word}`: In the first form, if
+  `name` is unset then set it to `word`. In the second form, if `name` is unset
+  or empty (null) then set it to `word`. In the third case, unconditionally set
+  `name` to `word`. In all forms, the value of the parameter is then
+  substituted.
+- `${name?word}` or `${name:?word}`: In the first form, if `name` is set, or in
+  the second form if `name` is both set and _non-empty_ (_non-null_), then
+  substitute its value. Otherwise, print `word` and exit from shell. Interactive
+  shells instead return to the prompt. If `word` is not omitted, then a standard
+  message is printed.
+
+Note that for all the forms above that test a variable, `word` can be
+additionally quoted in order to override the splitting done by the
+`SH_WORD_SPLIT` option.
+
+In the following expressions, when `name` is an array and the substitution is
+not quoted, or if the `(@)` or `name[@]` syntax is used, matching and
+replacement is performed on each array element separately.
+
+- `${name#pattern}` or `${name##pattern}`: If the `pattern` matches the
+  beginning of the value of `name`, then substitute the value of `name` with the
+  matched portion deleted, otherwise, just substitute the value of `name`. In
+  the first form, the smallest matching pattern is preferred, while in the
+  second form the longest matching pattern is preferred.
+- `${name%pattern}` or `${name%%pattern}`: If the `pattern` matches the end of
+  the value of `name`, then substitute the value of `name` with the matched
+  portion deleted, otherwise, just substitute the value of `name`. In the first
+  form, the smallest matching pattern is preferred, while in the second form the
+  longest matching pattern is preferred.
+- `${name:#pattern}`: If the pattern matches the value of `name`, then
+  substitute the empty string, otherwise just substitute the value of `name`. If
+  `name` is an array the matching array elements are removed (use the `(M)` flag
+  to remove the non-matched elements).
+- `${name:|arrayname}`: If `arrayname` is the name (**not contents**) of an
+  array variable, then any elements contained in `arrayname` are removed from
+  the substitution of `name`. If the substitution is scalar, either because
+  `name` is a scalar or because `arrayname` was quoted, then the elements of
+  `arrayname` are instead tested against the entire expression of `name`. For
+  example:
+    ```zsh
+    # for array parameters
+    name=(second word)
+    arrayname=(first second third)
+    echo ${name:|arrayname}
+    > word
+
+    # for scalar parameters
+    name="second word"
+    arrayname1=("first word" "second word")
+    arrayname2=(first second third)
+    echo ${name:|arrayname1}
+    > 
+    echo ${name:|arrayname2}
+    > second word
+    ```
+- `${name:*arrayname}`: Similar to the preceding substitution, but in the
+  opposite sense, so that entries present in both the original substitution and
+  as elements of `arrayname` are retained and others removed. For example:
+    ```zsh
+    name=(second word here)
+    arrayname=(first second third)
+    echo ${name:*arrayname}
+    > second
+    ```
+- `${name:^arrayname}` or `${name:^^arrayname}`: Zips two arrays, such that the
+  output is twice as long as the shortest (longest for the `:^^` form) of `name`
+  and `arrayname`, with the elements alternatingly being picked from them. For
+  example:
+    ```zsh
+    a=(1 2)
+    b=(a b c d e)
+    echo ${a:^b}
+    > 1 a 2 b
+    echo ${a:^^b}
+    > 1 a 2 b 1 c 2 d 1 e
+    ```
+  If any of the arrays are scalars, then they are considered arrays of length
+  one, with the scalar as the only element of the array. If any of the arrays
+  are empty, the other array is output without any other elements inserted.
+- `${name:offset}` or `${name:offset:length}`: The syntax is similar to that of
+  array subscripting `$name[start,end]`, however it is compatible with other
+  shells. Both `offset` and `length` are interpreted differently than the
+  components of a subscript. For example, arithmetic expressions work inside the
+  `${name:offset:length}` form, whereas they don't in subscripting.
+
+  If `name` is a scalar, then `offset` refers to the characters in the scalar;
+  if `name` is an array, then `offset` refers to the elements in the array. Same
+  rules apply for `length`. The first character in the scalar (or element in the
+  array) is considered to be at position 0. This is different than subscripting.
+
+  The `offset` may be both positive and negative. On the negative form, it start
+  counting from the end of the scalar (or array), with the last character (or
+  element) being -1. Similar for `length`, a positive `length` counts from the
+  `offset` position towards the end of the array, while a negative `length`
+  counts back from the end. The option `MULTIBYTE` is respected, so both
+  `offset` and `length` count multibyte characters where appropriate. Note that
+  when `offset` is negative, a space needs to be inserted after the `:`, so as
+  not to be confused with the `${name:-word}` form.
+
+  Both `offset` and `length` are subject to shell substitutions, so the forms
+  below are equivalent:
+
+  ```zsh
+  echo ${name:3}
+  echo ${name:1 + 2}
+  echo ${name:$((1 + 2))}
+  echo ${name:$(echo 1 + 2)}
+  ```
+- `${name/pattern/repl}` or `${name//pattern/repl}` or `${name:/pattern/repl}`:
+  Replace the longest possible match of `pattern` in the expansion of parameter
+  `name` by string `repl`. The first form replaces just the first occurrence,
+  and the third form replaces only if `pattern` matches the entire string. Both
+  `pattern` and `repl` are subject to double-quoted substitution, so things like
+  `${name/$pat/$repl}` will work.
+
+  The pattern may begin with a `#`, in which case the pattern must match at the
+  beginning of the string, or `%`, in which case it must match at the end of the
+  string, or `#%`, in which case the pattern must match the entire string. The
+  `repl` can be an empty string, in which case the final `/` may be omitted.
+  Note that the `#`, `%` or `#%` are not active if they come from a substituted
+  parameter.
+
+  If `${name}` expands to an array after quoting applies, the replacement acts
+  on each element individually.
+- `${#spec}`: If `spec` is one of the above substitutions, substitute the length
+  of the result instead of the result itself. If `spec` is an array, substitute
+  the number of elements in the array.
+- `${^spec}`: Turn on the `RC_EXPAND_PARAM` option for the evaluation of `spec`.
+  If the `^` is doubled, turn it off. When this option is set, array expansions
+  of the form `foo${xx}bar`, where `${xx}` is set to `(a b c)`, are substituted
+  for `fooabar foobbar foocbar` instead of `fooa b cbar`. Note that an empty
+  array will therefore cause all arguments to be removed.
+- `${=spec}`: Perform word splitting using the rules for `SH_WORD_SPLIT` during
+  the evaluation of `spec`, regardless of whether the parameter appears in
+  double quotes. If the `=` is doubled, turn it off. This forces parameter
+  expansions to be split into separate words before substitution, using `IFS` as
+  delimiter. This is done by default in most other shells. Note that splitting
+  is applied to `word` in the assignment forms of `spec` _before_ the assignment
+  to `name` is performed. This affects the result of array assignments with the
+  `A` flag.
+- `${~spec}`: Turn on the `GLOB_SUBST` option for the evaluation of `spec`. If
+  the `~` is doubled, turn it off. When this option is set, the string resulting
+  from the expansion will be interpreted as a pattern anywhere that is possible,
+  such as in filename expansion and filename generation and pattern-matching
+  contexts like the right hand side of the `=` and `!=` in conditions. For
+  example:
+    ```zsh
+    word="m*.c"
+    echo ${word}
+    > m*.c
+    echo ${~word}
+    > main.c meta.c
+    ```
+
+If a `${...}` parameter expansion or a `$(...)` command substitution is used in
+place of `name` above, it is expanded first and the result is used as if it were
+the value of `name`. Therefore it's possible for nested substitutions. For
+example, the form `${${foo#head}%tail}` will first delete `head` from `foo`,
+then will delete `tail`. The final result will be substituted on the command
+line.
+
+---
+
+##### Parameter expansion flags
+
+If the opening brace is directly followed by an opening parenthesis, the string
+up to the matching closing brace will be taken as a list of flags.
+
+The following flags are supported:
+- `#`: Evaluate the resulting words as numeric expressions and output the
+  characters corresponding to the resulting integer. If the `MULTIBYTE` option
+  is set and the integer is above 127, the character is treated as Unicode. For
+  example:
+    ```zsh
+    character="65"
+    echo ${(#)character}
+    > A
+
+    character="9786"
+    echo ${(#)character}
+    > ☺
+    ```
+- `%`: Expand all the `%` escapes in the resulting string in the same way as in
+  prompts (see [Prompt expansion](#prompt-expansion)). If the flag is given
+  twice, full prompt expansion is done on the resulting words, depending on the
+  setting of the `PROMPT_PERCENT`, `PROMPT_SUBST` and `PROMPT_BANG` options.
+- `@`: In double quotes, array elements are put into separate words. `"${(@)foo}"`
+  is equivalent to `"${foo[@]}"` and `"${(@)foo[1,2]}"` is the same as
+  `"$foo[1]" "$foo[2]"`.
+- `A`: Convert the substitution into an array expression, even if it would be
+  scalar otherwise. This has lower precedence than subscripting, so one level of
+  nested expansion is required in order for the subscripts to apply to array
+  elements.
+- `a`: Sort in array index order. When combined with `O` sort in reverse array
+  index order. `a` is therefore equivalent to the default, however `Oa` is
+  useful for getting the reverse of an array.
+- `b`: Quote with backslashes only characters that are special to pattern
+  matching. This is useful if the contents of the variable are to be tested
+  using `GLOB_SUBST`, including the `${~...}` switch.
+- `c`: With `${#name}`, count the total number of characters in an array, as if
+  the elements were concatenated with spaces between them.
+- `C`: Capitalize the resulting words. In this case, _words_ means alphanumeric
+  characters separated by non-alphanumeric characters, **not** words that result
+  from field splitting. Example:
+    ```zsh
+    word="this is a word."
+    echo ${(C)word}
+    > This Is A Word.
+    ```
+- `D`: Assume the string or the array elements contain directories and attempt
+  to substitute the leading part of it by names. The remainder of the string is
+  quoted so that the whole string can then be used as a shell argument. This is
+  the reverse of the `~` substitution. Example:
+    ```zsh
+    word="/home/user/projects another argument m*.c"
+    echo ${(D)word}
+    > ~/projects\ another\ argument\ m\*.c
+    ```
+- `e`: Perform single word shell expansions, namely parameter expansion, command
+  substitution and arithmetic expansion, on the result.
+- `f`: Split the result of the expansion at newlines. This is a shorthand for
+  `ps:\n:`.
+- `F`: Join the words of arrays together using newline as a separator. This is a
+  shorthand for `pj:\n:`.
+- `g:opts:`: Process escape sequences similar to the `echo` builtin when no
+  options are given (`g::`). With the `o` option, octal escapes don't take a
+  leading zero. With the `c` option, sequences like `^X` are also processed.
+  With the `e` option, processes `\M-t` and similar sequences like the `print`
+  builtin. With both `o` and `e`, behaves like the `print` builtin except that
+  in none of these modes is `\c` interpreted.
+- `i`: Sort case-sensitively. May be combined with `n` or `O`.
+- `k`: If `name` refers to an associative array, substitute the `keys` (elements
+  names) rather than the values of the elements.
+- `L`: Convert all letters in the result to lowercase.
+- `n`: Sort decimal integers numerically; if the first two differing characters
+  of two test strings are not digits, sorting is done lexical. Integers with
+  more initial zeroes are sorted before those with fewer or none. Hence the
+  array `foo1 foo02 foo2 foo3 foo20 foo23` is sorted in that order. Can be
+  combined with `i` or `O`.
+- `o`: Sort the resulting words in ascending order. If it appears on its own,
+  the sorting is lexical and case-sensitive.
+- `O`: Sort the resulting words in descending order. `O` without `a`, `i` or `n`
+  sorts in reverse lexical order. May be combined with `a`, `i` or `n` to
+  reverse the order of sorting.
+- `P`: This forces the value of `name` to be interpreted as a further parameter
+  name. For example:
+    ```zsh
+    foo=bar bar=baz
+    echo ${(P)foo} ${(P)${foo}} ${(P)$(echo bar)}
+    > baz baz baz
+    ```
+- `q`: Quote characters that are special to the shell. Unprintable or invalid
+  characters are also quoted. If the flag is given twice, the words are quoted
+  in single quotes. With the flag three times, the words are quoted in double
+  quotes. If the flag is given four times, the words are quoted in single quotes
+  preceded by a `$`.
+
+  With `q-`, a minimal quoting is done so that special characters are protected
+  against interpretation from the shell. This usually produces the most readable
+  output.
+
+  With `q+` given, an extending minimal quoting is done that also accounts for
+  unprintable characters (the forms above with two or three `q`s don't account
+  for unprintable characters).
+- `Q`: Remove one level of quotes from the resulting words.
+- `t`: Use a string describing the type of parameter where the value of the
+  parameter would usually appear. The first keyword describes the main type,
+  which can be one of `scalar`, `array`, `integer`, `float` or `association`.
+  The other keywords are separated by `-`s and can be:
+    - `local`
+    - `left`
+    - `right_blanks`
+    - `right_zeros`
+    - `lower`
+    - `upper`
+    - `readonly`
+    - `tag`
+    - `export`
+    - `unique`
+    - `hide`
+    - `hideval`
+    - `special`
+
+  See the manual for what each of these mean.
+
+  For example:
+    ```zsh
+    echo ${(t)path}
+    > array-tied-unique-special
+    ```
+- `u`: Expand only the first occurrence of each unique word.
+- `U`: Convert all letters in the result to uppercase.
+- `v`: Used with `k`, substitute both the key and the value of each associative
+  array element.
+- `V`: Make any special characters in the resulting words visible.
+- `w`: With `${#name}`, count words in arrays or strings; the `s` flag may be
+  used to set a delimiter.
+- `W`: Similar to `w` with the difference that empty words between repeated
+  delimiters are also counted.
+- `X`: With this flag, parsing errors occurring with the `Q`, `e` and `#` flags
+  or the pattern matching forms are reported. Without it, the errors are
+  silently ignored.
+- `z`: Split the result of the expansion into words. Example:
+  ```zsh
+  word="This is a sentence."
+  for i in ${word}; do echo $i; done
+  > This is a sentence.
+  for i in ${(z)word}; do echo $i; done
+  > This
+  > is
+  > a
+  > sentence.
+  ```
+- `0`: Split the result of the expansion on null bytes. This is a shorthand for
+  `ps:\0:`.
+
+The following flags (except `p`) are all followed by an argument. Any character
+might be used for delimiter instead of the colon (`:`). Brackets are used in
+pairs respectively.
+
+- `p`: Recognize the same escape sequences as the `print` builtin in string
+  arguments to any of the flags that follow this argument. String arguments may
+  be in the form `$var` in which case the value is substituted. This variable
+  doesn't however undergo general parameter expansion. For example, with the
+  flag `s` below:
+    ```zsh
+    sep=:
+    val=a:b:c
+    echo ${(ps.$sep.)val}
+    > a b c     # split the variable on colon (:)
+    ```
+- `~`: Strings inserted into the expansion by any of the flags below are to be
+  treated as patterns. This applies to the string arguments of flags that
+  follow `~` within the same set of parentheses. Compare that with the `~`
+  outside the parentheses, which forces the entire substituted string to be
+  treated as a pattern. A subsequent `~` toggles the effect off.
+- `j:string:`: Join the words of an array together using `string` as a
+  separator. This occurs before the `s` flag or the `SH_WORD_SPLIT` option.
+- `l:expr::string1::string2:` (mnemonic **left**): Pad the resulting words on the left. Each word
+  will be truncated if required and placed in a field `expr` characters wide.
+
+  The arguments `:string1:` and `:string2:` are optional. The space to the left
+  will be filled with `string1` if given or spaces otherwise. If both `string1`
+  and `string2` are given, `string2` is inserted once directly to the left of
+  each word, truncated if necessary, before `string1` is used to produce any
+  remaining padding.
+- `m`: Only useful together with one of the flags `l` or `r` or with the `#`
+  length operator when the `MULTIBYTE` option is in effect. Use the character
+  width reported by the system in calculating how much of the string it occupies
+  or the overall length of the string.
+- `r:expr::string1::string2:` (mnemonic **right**): As `l`, but pad the words on
+  the right and insert `string2` immediately to the right of the string to be
+  padded. Left and right padding may be used together.
+- `s:string:`: Force field splitting at the separator `string`. With a `string`
+  of two or more characters, all of them must match in a sequence. With an empty
+  `string`, every character will be split.
+- `Z:opts:`: As `z` but takes a combination of option letters between the
+  delimiters.
+- `_:flags:`: The underscore flag is reserved for future use. The flag itself
+  has no effect and is treated like an error when it appears.
+
+The following flags are meaningful with the `${...#...}` or `${...%...}` forms.
+The `S` and `I` flags may also be used with the `${.../...}` form.
+
+- `S`: With `#` or `##`, search for the match that starts closest to the start
+  of the string (a _substring match_). Of all matches at a particular position,
+  `#` selects the shortest and `##` and longest. With `%` or `%%`, search for
+  the match that starts closest to the end.
+- `I:expr:`: Search the `expr`th match (where `expr` evaluates to a number).
+  This only applies when searching for substrings, either with the `S` flag, or
+  with the `${.../...}` form (only the `expr`th match is substituted) or with
+  the `${...//...}` form (all matches from the `expr`th match on are
+  substituted). The default is to take the first match. See the manual for more
+  examples.
+- `B`: Include the index of the beginning of the match in the result.
+- `E`: Include the index one character past the end of the match in the result.
+- `M`: Include the matched portion in the result.
+- `N`: Include the length of the match in the result.
+- `R` (mnemonic **R**est): Include the unmatched portion in the result.
+
+##### Rules and examples for parameter expansion
+
+The manual additionally includes the  25 rules which are followed for parameter
+expansion. These are detailed (together with examples) in [The Expansion section
+in the Zsh manual][].
+
+See:
+- [Rules for parameter expansion][]
+- [Parameter expansion examples][]
+
+[Rules for parameter expansion]: https://zsh.sourceforge.io/Doc/Release/Expansion.html#Rules
+[Parameter expansion examples]: https://zsh.sourceforge.io/Doc/Release/Expansion.html#Examples
+
+--------------------------------------------------------------------------------
 
 For more information see:
 - [The Expansion section in the Zsh manual][]
