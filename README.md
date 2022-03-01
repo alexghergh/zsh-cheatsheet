@@ -1882,16 +1882,16 @@ See:
 
 #### Command substitution
 
-Commands are substituted when enclosed in `$(...)` or `\`...\`` (backticks). The
+Commands are substituted when enclosed in `$(...)` or `` `...` `` (backticks). The
 substitution is the output of the command, with any trailing newlines deleted.
 If the substitution is not enclosed in double quotes, the output is broken into
 words using the `IFS` parameter.
 
-The substitution `$(cat file)` can be replaced by the faster `$(\<file)`, which
+The substitution `$(cat file)` can be replaced by the faster `$(<file)`, which
 in this case undergoes single word shell expansions (_parameter expansion_,
 _command substitution_ and _arithmetic expansion_), but not filename generation.
 
-If the option `GLOB\_SUBST` is set, the result of any unquoted substitution,
+If the option `GLOB_SUBST` is set, the result of any unquoted substitution,
 including the special form just mentioned, is eligible for filename generation.
 
 #### Arithmetic expansion
@@ -1899,7 +1899,7 @@ including the special form just mentioned, is eligible for filename generation.
 A string of the form `$[exp]` or `$((exp))` is substituted with the value of the
 arithmetic expression `exp`. `exp` is subjected to _parameter expansion_,
 _command substitution_ and _arithmetic expansion_ before it is evaluated. For
-more on arithmetic evaluation see [the corresponding section](#arithmetic-evaluation).
+more on arithmetic evaluation see [the corresponding section](#13-arithmetic-evaluation).
 
 --------------------------------------------------------------------------------
 
