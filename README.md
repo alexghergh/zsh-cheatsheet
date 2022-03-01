@@ -1880,6 +1880,20 @@ See:
 [Rules for parameter expansion]: https://zsh.sourceforge.io/Doc/Release/Expansion.html#Rules
 [Parameter expansion examples]: https://zsh.sourceforge.io/Doc/Release/Expansion.html#Examples
 
+#### Command substitution
+
+Commands are substituted when enclosed in `$(...)` or `\`...\`` (backticks). The
+substitution is the output of the command, with any trailing newlines deleted.
+If the substitution is not enclosed in double quotes, the output is broken into
+words using the `IFS` parameter.
+
+The substitution `$(cat file)` can be replaced by the faster `$(\<file)`, which
+in this case undergoes single word shell expansions (_parameter expansion_,
+_command substitution_ and _arithmetic expansion_), but not filename generation.
+
+If the option `GLOB\_SUBST` is set, the result of any unquoted substitution,
+including the special form just mentioned, is eligible for filename generation.
+
 --------------------------------------------------------------------------------
 
 For more information see:
