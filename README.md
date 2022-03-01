@@ -1894,6 +1894,13 @@ _command substitution_ and _arithmetic expansion_), but not filename generation.
 If the option `GLOB\_SUBST` is set, the result of any unquoted substitution,
 including the special form just mentioned, is eligible for filename generation.
 
+#### Arithmetic expansion
+
+A string of the form `$[exp]` or `$((exp))` is substituted with the value of the
+arithmetic expression `exp`. `exp` is subjected to _parameter expansion_,
+_command substitution_ and _arithmetic expansion_ before it is evaluated. For
+more on arithmetic evaluation see [the corresponding section](#arithmetic-evaluation).
+
 --------------------------------------------------------------------------------
 
 For more information see:
