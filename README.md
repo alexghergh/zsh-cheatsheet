@@ -1901,6 +1901,102 @@ arithmetic expression `exp`. `exp` is subjected to _parameter expansion_,
 _command substitution_ and _arithmetic expansion_ before it is evaluated. For
 more on arithmetic evaluation see [the corresponding section](#13-arithmetic-evaluation).
 
+#### Brace expansion
+
+A string of the form `foo{xx,yy,zz}bar` is expanded to the individuals strings
+`fooxxbar fooyybar foozzbar`. This is different from the example above with
+`foo${var}bar`, with `var` being for example the array `(xx yy zz)`. The result is
+the same as above provided the `RC_EXPAND_PARAM` option is set. What this means:
+  ```zsh
+  var=(xx yy zz)
+  echo foo{xx,yy,zz}bar
+  > fooxxbar fooyybar foozzbar
+
+  # with RC_EXPAND_PARAM set
+  echo foo${var}bar
+  > fooxxbar fooyybar foozzbar
+
+  # with RC_EXPAND_PARAM unset
+  > fooxx yy zzbar
+  ```
+The same can be achieved with the `${^spec}` form (see [Parameter expansion](#parameter-expansion)
+for more).
+
+This construct may be nested. Commas may be quoted to include them literally.
+
+An expression of the form `{n1..n2}`, where `n1` and `n2` are integers, is
+expanded to every number between `n1` and `n2`, inclusive. If either number
+begins with a zero, all the numbers will be padded with leading zeros to that
+minimum width. For negative numbers, the `-` (minus) character is also included
+in that width. If the numbers are in decreasing order, than the sequence is also
+in decreasing order. For example:
+
+```zsh
+echo f{1..4}
+> f1 f2 f3 f4
+
+echo f {1..4}
+> f 1 2 3 4
+
+echo {001..04}
+> 001 002 003 004
+
+echo {001..0004}
+> 001 002 003 004
+
+echo {001..-4}
+> 001 000 -01 -02 -03 -04
+
+touch file{01..10}.c
+> # file01.c file02.c file03.c ...
+
+rm file{01..10}.c
+> # file01.c file02.c file03.c ...
+
+touch main.{cpp,hpp}
+> # main.cpp main.hpp
+```
+
+An expression of the form `{n1..n2..n3}`, where `n1`, `n2` and `n3` are integers,
+is expanded to the sequence from `n1` to `n2`, but only every `n3`th number is
+output. If `n3` is negative the items are output in reverse order. Zero padding
+can also be specified in any of the 3 numbers. For example:
+
+```zsh
+echo file{01..11..3}
+> file01 file04 file07 file10
+
+echo file{01..11..-3}
+> file10 file07 file04 file01
+
+echo file{11..01..3}
+> file11 file08 file05 file02
+```
+
+An expression of the form `{c1..c2}`, where `c1` and `c2` are single characters
+(which may be multibyte characters), is expanded to every character in the range
+from `c1` to `c2` in whatever character sequence is used internally. For
+characters with code points below this is ASCII. If any character is
+non-printable, appropriate quotation is used to make it printable. For example:
+
+```zsh
+echo {d..a}
+> d c b a
+
+echo {☺..☽}
+> ☺ ☻ ☼ ☽
+```
+
+If a brace expansion doesn't match any of the forms above, it is left unchanged.
+If the `BRACE_CCL` (brace character class) option is set, the characters between
+the braces are sorted into the order of the characters in the ASCII set
+(multibyte characters not handled). More examples on this in the manual.
+
+**Note** that brace expansion is not part of filename generation. An expression
+of the form `*/{foo,bar}` is split into two separate words `*/foo */bar` before
+filename generation takes place. This means that if _either_ of the two doesn't
+match, then the command will produce a `no match` error.
+
 --------------------------------------------------------------------------------
 
 For more information see:
