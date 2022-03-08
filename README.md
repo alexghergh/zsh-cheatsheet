@@ -1997,6 +1997,50 @@ of the form `*/{foo,bar}` is split into two separate words `*/foo */bar` before
 filename generation takes place. This means that if _either_ of the two doesn't
 match, then the command will produce a `no match` error.
 
+#### Filename expansion
+
+Each word is checked to see if it begins with an unquoted `~`. If it does, then
+the part up until the first `/`, or the end of the word if there's no `/`, is
+checked to see if it can be substituted in one of the ways mentioned below. If
+it can be, then the `~` and the part following it are substituted with the
+appropriate value.
+
+A `~` by itself is replaced with the value of `$HOME`. A `~` followed by a `+`
+or `-` is replaced by the current directory or by the previous working
+directory, respectively.
+
+A `~` followed by a number is replaced by the directory at that position in the
+directory stack (the directory stack can be listed via the `dirs` builtin). `~0`
+is equivalent to `~+` and `~1` is the top of the stack. `~+` followed by a
+number has the same effect. `~-` followed by a number has the effect of
+replacing the directory from the bottom of the stack with that number. The
+`PUSHD_MINUS` option exchanges the effects of `~+` and `~-`.
+
+##### Dynamic named directories
+
+Directories can be dynamically named through the use of the `zsh_directory_name`
+function, or through the use of the `zsh_directory_name_functions` array. In
+either case, the path is supplied to one of the methods, which could alter how
+it is displayed in different modes. More info in the manual.
+
+
+##### Static named directories
+
+Additionally, the shell defines named directories, which are either home
+directories of other users on the system, or just directories defined with the
+`-d` option to the `hash` builtin command. If such a named directory is found,
+then it is replaced inside the path.
+
+In a way, dynamic named directories are for changing directory names on-the-fly,
+while static named directories are more of a preset way to change directory
+names.
+
+##### '=' expansion
+
+If a word begins with a `=` and the `EQUALS` option is set, the remainder of the
+word is taken to be the name of a command. If that command name exists, its
+entire path is substituted on the command line.
+
 --------------------------------------------------------------------------------
 
 For more information see:
