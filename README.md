@@ -2041,6 +2041,318 @@ If a word begins with a `=` and the `EQUALS` option is set, the remainder of the
 word is taken to be the name of a command. If that command name exists, its
 entire path is substituted on the command line.
 
+#### Filename generation
+
+If a word contains any of the characters `*`, `(`, `|`, `<`, `[` or `?`, it is
+subject to pattern matching for filename generation, unless the option `GLOB` is
+unset. Additionally, if the option `EXTENDED_GLOB` is set, then the characters
+`^` and `#` are also subject to pattern matching. Otherwise, they have no
+special meaning to the shell.
+
+The word is replaced with a list of sorted filenames that match the pattern. If
+no matching pattern is found, the shell gives an error message, unless the
+`NULL_GLOB` option is set, in which case the word is deleted, or unless the
+`NOMATCH` option is unset, in which case the word is left unchanged.
+
+In filename generation, the character `/` has to be matched explicitly. A `.`
+also has to be matched explicitly at the beginning of a pattern or after a `/`,
+unless the `GLOB_DOTS` option is set. No pattern matching for filename
+generation matches the files `.` and `..`. In other instances of pattern
+matching, the `/` and `.` are not treated specially.
+
+##### Glob operators
+
+- `*`: Matches any string, including the null string.
+- `?`: Matches any one character.
+- `[...]`: Matches any of the characters between the brackets. Ranges of
+  characters can be specified by separating two characters with `-`. Usual
+  ranges are `0-9`, `a-z` or `A-Z`. A `]` or `-` may be matched by including
+  them as the first characters in the list. There are additionally named
+  character classes, in the form `[:name:]`. The first set of character classes
+  are subject to operating system language settings (for more see `man
+  ctype(3)`):
+  - `[:alnum:]`: Alphanumeric characters.
+  - `[:alpha:]`: Alphabetic characters.
+  - `[:ascii:]`: ASCII characters (single-byte characters without the top bit
+    set).
+  - `[:blank:]`: Blank characters (white spaces, tabs, new-lines etc.).
+  - `[:cntrl:]`: Control characters.
+  - `[:digit:]`: Digit characters (0-9).
+  - `[:graph:]`: (Mnemonic graphic) The character is a printable character other
+    than whitespace.
+  - `[:lower:]`: The character is a lowercase letter.
+  - `[:print:]`: The character is a printable character.
+  - `[:punct:]`: The character is a punctuation sign (the character is printable
+    but neither alphanumeric nor whitespace).
+  - `[:space:]`: The character is whitespace.
+  - `[:upper:]`: The character is an uppercase letter.
+  - `[:xdigit:]`: The character is a digit in base 16 (hexadecimal digit).
+  Another set of character classes is handled directly by the shell and is not
+  subject to the underlying operating system settings. See the manual for the
+  specific named classes.
+
+  Note that the square brackets are additional to those enclosing the whole set
+  of characters. For example:
+  ```zsh
+  echo [[:alnum:]]      # matches one single alphanumeric character
+  echo [[:alpha:]0-9]*  # matches zero or more alphabetic characters and numbers
+  ```
+- `[^...]` or `[!...]`: Like `[...]`, except that it matches any character which
+  is **not** given in the set.
+- `<[x]-[y]>`: Matches any number in the range `x` to `y`, inclusive. Either of
+  the numbers may be omitted to make the range open-ended (hence `<->` matches
+  any number). To match individual digits, the `[...]` form is more efficient.
+
+  Note that other wildcards adjacent to these forms do not always behave as
+  expected. For example, `<0-9>*` will match any number whatsoever at the start
+  of a string, instead of the expected one digit followed by other characters.
+  The fix is to have a pattern such as `<0-9>[^[:digit:]]*`.
+- `(...)`: Matches the enclosed pattern. This is used for grouping. With
+  `KSH_GLOB` set, the `@`, `*`, `+`, `?` or `!` directly preceding the `(` are
+  treated specially.
+
+  Note that grouping cannot extend over multiple directories. There is one
+  exception: a group of the form `(pat/)#` appearing as a complete path segment
+  can match a sequence of directories. For example `foo/(a*/)#bar` matches
+  `foo/bar`, `foo/any/bar`, `foo/any/anyother/bar` etc.
+- `x|y`: Matches either `x` or `y`. The `|` character must be between
+  parentheses to avoid a pipeline interpretation (i.e. `(x|y)`).
+- `^x`: (requires `EXTENDED_GLOB`) Matches anything except pattern `x`. This has
+  higher precedence than `/`, so `^foo/bar` will search directories in `.`
+  except `./foo` for a file named `bar`.
+- `x~y`: (requires `EXTENDED_GLOB`) Match anything that matches the pattern `x`
+  but does not match `y`. This has lower precedence than any other operator
+  except `|`.
+- `x#`: (requires `EXTENDED_GLOB`) Matches zero or more occurrences of pattern
+  `x`. `12#` is equivalent to `1(2#)` rather than `(12)#`.
+- `x##`: (requires `EXTENDED_GLOB`) Matches one or more occurrences of pattern
+  `x`.
+
+There are additional ksh-like glob operators. These are presented in the
+[manual](https://zsh.sourceforge.io/Doc/Release/Expansion.html#ksh_002dlike-Glob-Operators).
+
+
+##### Precedence
+
+The precedence of the operators above is (from highest to lowest): `^`, `/`,
+`~`, `|`. The other operators are simply treated from left to right, with `#`
+and `##` applying to the shortest possible preceding unit (i.e. a character, a
+`(...)`, a `<...>`, a `?`).
+
+In patterns used in other places than filename generation (for example `case`
+statements or as part of `[[...]]` tests), a `/` is not special; a `/` is also
+not special after a `~` appearing outside parentheses in a filename pattern.
+
+##### Globbing flags
+
+There are various flags which affect any text to the right up to the end of the
+enclosing group or to the end of the pattern. All of them require the
+`EXTENDED_GLOB` option set. All take the form `(#X)`, where `X` may be any of
+the following:
+- `i`: Case insensitive.
+- `l`: Lower case characters in the pattern match upper or lower case
+  characters. Upper case characters in the pattern still match only upper case
+  characters.
+- `I`: Case sensitive. Locally negates the effects of `i` or `l` from that point
+  on.
+- `b`: Activate back-references in pattern matching. Does not work in filename
+  generation, but can be used in `[[...]]` forms. When a pattern with a set of
+  parentheses is matched, the strings matched by the groups are stored in the
+  array `$match`, the indices of the beginning of the matched parentheses in the
+  array `$mbegin`, and the indices of the end in the array `$mend`. These arrays
+  are not otherwise special to the shell. The indices use the same convention as
+  does parameter substitution, so that elements of the arrays `$mbegin` and
+  `$mend` may be used in subscripts; the `KSH_ARRAYS` option is respected. Sets
+  of globbing flags are not considered parenthesised groups. Only the first nine
+  active parenthesised groups can be referenced.
+
+  For example:
+  ```zsh
+  foo="a_string_with_a_message"
+  if [[ $foo == (a|an)_(#b)(*) ]]; then
+    print ${foo[$mbegin[1],$mend[1]]}
+  fi
+  > string_with_a_message
+  ```
+
+  Notice that the first parenthesised group (`(a|an)`) appears before the
+  activation of backreferences, so it is not considered in the arrays `$mbegin`
+  and `$mend`.
+
+  Backreferences work with all forms of pattern matching except filename
+  generation.
+
+  The numbering of backreferences strictly follows the order of the opening
+  parentheses from left to right in the pattern string.
+
+  Additional information of when it can fail and how to nest backreferences can
+  be found in the manual.
+- `B`: Deactivate backreferences, negating the effect of the `b` flag from that
+  point on.
+- `cN,M`: The flag `(#cN,M)` can be used anywhere that the operators `#` and
+  `##` can be used except in the expressions `(*/)#` and `(*/)##` in filename
+  generation, where `/` has a special meaning. It cannot be combined with other
+  globbing flags. The previous character or group is required to match between
+  `N` and `M` times, inclusive. The form `(#cN)` requires exactly `N` matches,
+  while the form `(#c,M)` is equivalent to specifying `N` as 0. The form
+  `(#cN,)` specifies that there is no maximum limit on the number of characters.
+- `m`: Set references to the match data for the entire string matched. This is
+  similar to backreferencing and does not work in filename generation. The flag
+  must be in effect at the end of the pattern. The parameters `$MATCH`,
+  `$MBEGIN` and `$MEND` will be set to the string matched and to the indices of
+  the beginning and end of the string, respectively. This is most useful in
+  parameter substitutions, as otherwise the string matched is obvious.
+
+  For example:
+  ```zsh
+  arr=(ardent velden moria sitris belundo viscero)
+  echo ${arr//(#m)[aeiou]/${(U)MATCH}}
+  > ArdEnt vEldEn mOrIA sItrIs bElUndO vIscErO
+  ```
+- `M`: Deactivate the `m` flag, hence no references to match data will be
+  created.
+- `aNUM`: Approximate matching. `NUM` errors are allowed in the string matched
+  by the pattern. The rules for this are described in the next subsection.
+- `s,e`: Unlike the other flags, these have only a local effect, and each must
+  appear on its own: `(#s)` and `(#e)` are the only valid forms. The `(#s)` flag
+  succeeds only at the beginning of the pattern, while the `(#e)` succeeds only
+  at the end. These are equivalent to `^` and `$` in standard regex matching.
+
+  See the manual for where these flags might be useful.
+- `q`: A `q` and everything up to the closing parenthesis of the globbing
+  flags are ignored by the pattern matching code. This is intended to support
+  the use of glob qualifiers. See the manual for a use-case.
+- `u`: Respect the current locale in determining the presence of multibyte
+  characters in a pattern, provided the shell was compiled with
+  `MULTIBYTE_SUPPORT`. This overrides the `MULTIBYTE` option.
+- `U`: All characters are considered to be one byte long. The opposite of `u`.
+  This overrides the `MULTIBYTE` option.
+
+##### Approximate matching
+
+When matching approximately, the shell keeps a count of the errors found, which
+cannot exceed the number defined with the flag `(#aNUM)`. Four types of errors
+are recognized:
+- Different characters, as in `fooxbar` and `fooybar`.
+- Transposition of characters, as in `banana` and `abnana`.
+- A character missing in the target string, as in `road` and `rod`.
+- An extra character appearing in the target string, as in `rod` and `road`.
+
+For more information on approximate matching, including some corner cases and
+example cases, can be found in the manual.
+
+##### Recursive globbing
+
+A pathname of the form `(foo/)#` matches a path consisting of zero or more
+directories matching the pattern `foo`.
+
+As a shorthand, `**/` stands for `(*/)#`. Note that this therefore matches files
+in the current directories as well as subdirectories. For example, the form
+`(*/)#bar` searches for files named `bar` in subdirectories (potentially in the
+current directory as well). The `**/` form does not follow symlinks, however the
+form `***/` does. The two are otherwise identical.
+
+With the option `GLOB_STAR_SHORT`, there is another available shorter form:
+```zsh
+setopt GLOBSTARSHORT
+ls **.c
+```
+
+is equivalent to:
+```zsh
+ls **/*.c
+```
+
+##### Glob qualifiers
+
+Patterns used in filename generation may end in a list of qualifiers enclosed in
+parentheses. The qualifiers specify which filenames that otherwise match the
+given pattern will be inserted in the argument list.
+
+See the manual for how options like `BARE_GLOB_QUAL` or `EXTENDED_GLOB` affect
+the shell syntax for glob qualifiers.
+
+A glob qualifier may be any of:
+- `/`: directories.
+- `F`: (mnemonic Full) non-empty directories. Note that the negation (`(^F)`)
+  expands to empty directories and non-directories. The form `(/^F)` should be
+  used for empty directories.
+- `.`: plain files.
+- `@`: symbolic links.
+- `=`: sockets.
+- `p`: named pipes (FIFOs).
+- `*`: executable plain files (0100 or 0010 or 0001).
+- `%`: device files (character or block special).
+- `%b`: block special files.
+- `%c`: character special files.
+- `r`: owner-readable files (0400).
+- `w`: owner-writable files (0200).
+- `x`: owner-executable files (0100).
+- `A`: group-readable files (0040).
+- `I`: group-writable files (0020).
+- `E`: group-executable files (0010).
+- `R`: world-readable files (0004).
+- `W`: world-writable files (0002).
+- `X`: world-executable files (0001).
+- `s`: setuid files (04000).
+- `S`: setgid files (02000).
+- `t`: files with the sticky bit (01000).
+- `fSPEC`: files with access right matching `SPEC`. This is a combination of the
+  above (write, read, execute for user, group, other users etc.). See the manual
+  for the possible combinations of `SPEC`s.
+- `eSTRING` or `+cmd`: `STRING` will be executed as shell code. The filename
+  will be included in the filename generation list only if the return status is
+  zero. The filename can then be tested using the code given (which might
+  include function calls etc.). See the manual for more details.
+- `dDEV`: Files on the device `DEV`.
+- `l[-|+]CT`: files having a link count less than `CT` (`-`), greater than
+  `CT` (`+`), or equal to `CT`.
+- `U`: files owned by the effective user ID.
+- `G`: files owned by the effective group ID.
+- `uID`: files owned by the user with the id `ID`. Otherwise, `ID` specifies a
+  user name. For example: `u1000` or `u:foo:` or `u[foo]` (the separator can be
+  anything).
+- `gID`: same as `uID`, but with groups.
+- `a[Mwhms][-|+]N`: files accessed exactly `N` days ago. More details in the
+  manual for the other option flags.
+- `m[Mwhms][-|+]N`: same as file access, but with modification time. More
+  details in the manual.
+- `c[Mwhms][-|+]N`: same as file access, but with inode change time. More
+  details in the manual.
+- `L[-|+]N`: files less than `N` bytes (`-`), more than `N` bytes (`+`) or
+  exactly `N` bytes. The check can be performed using kilobytes, megabytes etc.
+  Check the manual for more details.
+- `^`: negates all qualifiers following it.
+- `-`: toggles between having the qualifiers work on symbolic links (the
+  default) and the files they point to.
+- `M`: sets the `MARK_DIRS` option for the current pattern.
+- `T`: appends a trailing qualifier mark to the filenames, analogous to the
+  `LIST_TYPES` option, for the current pattern (overrides `M`).
+- `N`: sets the `NULL_GLOB` option for the current pattern.
+- `D`: sets the `GLOB_DOTS` option for the current pattern.
+- `n`: sets the `NUMERIC_GLOB_SORT` option for the current pattern.
+- `YN`: enables short-circuit mode. The pattern will expand to at most `N`
+  filenames. If more than `N` files match, only the first `N` in directory
+  traversal order will be considered. Implies `oN` when no `oC` qualifier is
+  used.
+- `oC`: specifies how the filenames should be sorted. If `C` is `n` they are
+  sorted by name; if it is `L` they are sorted by size (length) of the files; if
+  it is `l` they are sorted by the number of links; if `a`, `m` or `c` they are
+  sorted by access, modification or inode change time; if `d`, files in
+  subdirectories appear before those in the current directory at each level of
+  the search; if it is `N`, no sorting is performed. Additional cases are listed
+  in the manual.
+- `OC`: like `oC`, but sorts in descending order (reverse order).
+- `[beg[,end]]`: specifies which of the filenames should be included in the
+  returned list. The syntax is the same as for array subscripts.
+- `Pstring`: The `string` will be prepended to each glob name as a separate
+  word. A typical use case is to prepend an option to multiple files, i.e. `echo
+  *(P:-f:)` would list files as `-f file1 -f file2 ...`. If the modifier `^` is
+  active, then the `string` will be appended instead of prepended.
+
+For more examples and additional small details, check the manual, which has very
+good resources.
+
 --------------------------------------------------------------------------------
 
 For more information see:
