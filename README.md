@@ -120,7 +120,7 @@ More on what the files should contain:
 - `zshrc`: Sourced in interactive shells. Should contain commands to set up
   aliases, functions, options, keybindings, etc.
 - `zlogin`: Sourced in login shells. Should contain commands that should only be
-  executed in login shells (TODO example?).
+  executed in login shells.
 - `zprofile`: Similar to `zlogin`, except is is sourced before `zshrc`. This
   file is meant as an alternative to `.zlogin` for ksh fans. The two are not
   intended to be used together, though this can be done. `zlogin` should not
@@ -227,7 +227,7 @@ a newline):
 - `case <word> in [[(]<pattern>[ | <pattern>] ... ) <list> (<;;>|<;&>|<;|>)] ...
   esac`: A C-like switch statement. `<word>` is matched against `<pattern>` and,
   if it matched, then `<list>` is executed. The pattern matching is the same as
-  that of filename generation (TODO link to tip number). If the `<list>` that is
+  that of filename generation (see [filename generation](#filename-generation)). If the `<list>` that is
   executed is terminated with `;&` instead of the usual `;;`, the following
   `<list>` is also executed (regardless if `<pattern>` matches `<word>` or not).
   The rules for terminators are then repeated until the final `esac` is reached.
@@ -746,8 +746,9 @@ inherited by the shell from its parent (for more information see [the special
 functions section](#special-functions)).
 
 There are certain jobs that are ran asynchronously by the shell even if the job
-is not running in the background. Such jobs are process substitution (TODO link)
-or the _multios_ process (see [redirection](#multios)).
+is not running in the background. Such jobs are process substitution (see the
+section on [process substitution](#process-substitution)) or the _multios_ process (see
+[redirection](#multios)).
 
 For more information see:
 - [The signals section in the Zsh Manual][]
@@ -1407,7 +1408,7 @@ A good explanation on process substitution in [this post](https://stackoverflow.
 
 #### Parameter expansion
 
-The character `$` introduces parameter expansion. See parameters (TODO link) for
+The character `$` introduces parameter expansion. See [parameters](#shell-parameters) for
 what parameters could be.
 
 It's important to note how arrays work in Zsh, as it behaves quite differently
